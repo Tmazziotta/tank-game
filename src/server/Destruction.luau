@@ -1,6 +1,7 @@
 --!strict
 -- Breaks building chunks around a blast point: destroys their welds, throws them outward,
--- and also releases any chunks left disconnected from a foundation.
+-- lets under-supported chunks sag and fall, and releases anything left disconnected from
+-- a foundation.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -35,6 +36,54 @@ local function throw(part: BasePart, center: Vector3, radius: number, rng: Rando
 	part:ApplyAngularImpulse(spin * mass)
 end
 
+local function breakWelds(part: BasePart)
+	for _, joint in part:GetJoints() do
+		if joint:IsA("WeldConstraint") then
+			joint:Destroy()
+		end
+	end
+end
+
+-- A chunk is supported if something is welded beneath it, or if enough neighbours still
+-- hold it. Buildings are only ever yawed, so world Y is the building's vertical.
+local function isSupported(part: BasePart): boolean
+	local welds = 0
+	local floor = part.Position.Y - 0.25 * part.Size.Y
+	for _, joint in part:GetJoints() do
+		if joint:IsA("WeldConstraint") then
+			local other = if joint.Part0 == part then joint.Part1 else joint.Part0
+			if other then
+				if other.Position.Y < floor then
+					return true
+				end
+				welds += 1
+			end
+		end
+	end
+	return welds >= Config.Destruction.MinWeldsWhenUnsupported
+end
+
+-- Repeatedly drop chunks that lost their support, so overhangs sag after a hit.
+local function collapse(buildings: { [Instance]: boolean })
+	for _ = 1, Config.Destruction.CollapsePasses do
+		local falling: { BasePart } = {}
+		for building in buildings do
+			for _, child in building:GetChildren() do
+				if child:IsA("BasePart") and isChunk(child) and not isSupported(child) then
+					table.insert(falling, child)
+				end
+			end
+		end
+		if #falling == 0 then
+			return
+		end
+		for _, part in falling do
+			breakWelds(part)
+			release(part)
+		end
+	end
+end
+
 -- `roots` are the containers whose chunks the blast may affect (buildings and debris).
 function Destruction.blast(center: Vector3, radius: number, roots: { Instance })
 	local params = OverlapParams.new()
@@ -54,11 +103,7 @@ function Destruction.blast(center: Vector3, radius: number, roots: { Instance })
 		if building and building ~= DebrisService.getFolder() then
 			touchedBuildings[building] = true
 		end
-		for _, joint in part:GetJoints() do
-			if joint:IsA("WeldConstraint") then
-				joint:Destroy()
-			end
-		end
+		breakWelds(part)
 		table.insert(broken, part)
 	end
 
@@ -66,6 +111,8 @@ function Destruction.blast(center: Vector3, radius: number, roots: { Instance })
 		release(part)
 		throw(part, center, radius, rng)
 	end
+
+	collapse(touchedBuildings)
 
 	-- Anything no longer connected to an anchored foundation falls as well.
 	for building in touchedBuildings do

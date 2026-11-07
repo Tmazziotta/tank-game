@@ -52,6 +52,10 @@ local Config = {
 		DebrisLifetime = 8,
 		DebrisFadeTime = 0.6,
 		MaxDebris = 500, -- oldest debris is removed early above this
+		-- Sag: a chunk with nothing welded beneath it falls once it has fewer welds than this.
+		-- Intact buildings have at least 3 on every such chunk (e.g. above windows/doors).
+		MinWeldsWhenUnsupported = 3,
+		CollapsePasses = 4, -- cascade depth per blast; caps chain reactions
 	},
 }
 

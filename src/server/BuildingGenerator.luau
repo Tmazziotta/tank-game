@@ -38,16 +38,23 @@ local function varied(color: Color3, rng: Random): Color3
 	return Color3.fromHSV(h, s, math.clamp(v * rng:NextNumber(0.9, 1.05), 0, 1))
 end
 
+-- Windows on odd rows, staggered one column per window row so no chunk is sandwiched
+-- between a window below and a window above (it would only hang by its two side welds).
 local function isWindow(column: number, row: number, count: number): boolean
-	return row % 2 == 1 and column % 3 == 1 and column < count - 1
+	if row % 2 ~= 1 or column <= 0 or column >= count - 1 then
+		return false
+	end
+	local stagger = (row // 2) % 3
+	return (column + stagger) % 3 == 1
+end
+
+local function isDoorColumn(spec: BuildingSpec, column: number): boolean
+	local first = math.floor((spec.width - spec.doorWidth) / 2)
+	return spec.doorWidth > 0 and column >= first and column < first + spec.doorWidth
 end
 
 local function isDoor(spec: BuildingSpec, column: number, row: number): boolean
-	if spec.doorWidth <= 0 or row >= spec.doorHeight then
-		return false
-	end
-	local first = math.floor((spec.width - spec.doorWidth) / 2)
-	return column >= first and column < first + spec.doorWidth
+	return row < spec.doorHeight and isDoorColumn(spec, column)
 end
 
 local function layout(spec: BuildingSpec, rng: Random): { ChunkDef }
@@ -68,7 +75,9 @@ local function layout(spec: BuildingSpec, rng: Random): { ChunkDef }
 		for column = 0, spec.width - 1 do
 			local x = -outerW / 2 + s * (column + 0.5)
 			local size = Vector3.new(s, s, t)
-			local frontOpen = isDoor(spec, column, row) or (spec.windows and isWindow(column, row, spec.width))
+			-- No windows above the door, so the lintel keeps a chunk on top of it.
+			local frontWindow = spec.windows and isWindow(column, row, spec.width) and not isDoorColumn(spec, column)
+			local frontOpen = isDoor(spec, column, row) or frontWindow
 			if not frontOpen then
 				add(Vector3.new(x, y, -outerD / 2 + t / 2), size, spec.color)
 			end
