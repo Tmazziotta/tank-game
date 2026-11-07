@@ -1,7 +1,8 @@
 --!strict
 -- Builds a toy-style tank from primitive parts. Forward is the model's -Z (LookVector).
--- Hull assembly: hull + treads + fenders + seat (welded). Turret assembly: turret + dome +
--- barrel (welded), joined to the hull by a motorised HingeConstraint.
+-- Hull assembly: hull + treads + fenders + seat (welded). Turret assembly: turret + dome,
+-- joined to the hull by a motorised yaw hinge. Barrel assembly: barrel + muzzle brake,
+-- joined to the turret by a motorised, angle-limited pitch hinge.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -17,6 +18,7 @@ export type Tank = {
 	drive: LinearVelocity,
 	steer: AngularVelocity,
 	hinge: HingeConstraint,
+	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
 }
 
@@ -130,18 +132,42 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3): Tank
 	decor(dome)
 	weld(turret, dome)
 
+	-- Barrel assembly: pitches on its own hinge at the front of the turret.
 	local barrel = makePart(model, TankSchema.Barrel, Enum.PartType.Cylinder, Vector3.new(7, 1, 1), at(0, 5.0, -6.1) * ALONG_Z, DARK)
-	decor(barrel)
-	weld(turret, barrel)
+	barrel.CanCollide = false
+	barrel.CanTouch = false
 
 	local brake = makePart(model, "MuzzleBrake", Enum.PartType.Cylinder, Vector3.new(1.2, 1.5, 1.5), at(0, 5.0, -9.2) * ALONG_Z, WHEEL)
 	decor(brake)
-	weld(turret, brake)
+	weld(barrel, brake)
 
 	local muzzle = Instance.new("Attachment")
 	muzzle.Name = TankSchema.Muzzle
 	muzzle.Parent = barrel
 	muzzle.WorldCFrame = at(0, 5.0, -9.8)
+
+	-- Barrel hinge (axis = attachment X = tank right; positive angle = nose up) ---
+	local trunnionCFrame = at(0, 5.0, -2.6)
+	local trunnion0 = Instance.new("Attachment")
+	trunnion0.Name = "Trunnion"
+	trunnion0.Parent = turret
+	trunnion0.WorldCFrame = trunnionCFrame
+	local trunnion1 = Instance.new("Attachment")
+	trunnion1.Name = "Trunnion"
+	trunnion1.Parent = barrel
+	trunnion1.WorldCFrame = trunnionCFrame
+
+	local barrelHinge = Instance.new("HingeConstraint")
+	barrelHinge.Name = TankSchema.BarrelHinge
+	barrelHinge.Attachment0 = trunnion0
+	barrelHinge.Attachment1 = trunnion1
+	barrelHinge.ActuatorType = Enum.ActuatorType.Motor
+	barrelHinge.MotorMaxTorque = Config.Tank.BarrelMaxTorque
+	barrelHinge.AngularVelocity = 0
+	barrelHinge.LimitsEnabled = true
+	barrelHinge.LowerAngle = math.deg(Config.Tank.BarrelMinElevation)
+	barrelHinge.UpperAngle = math.deg(Config.Tank.BarrelMaxElevation)
+	barrelHinge.Parent = turret
 
 	-- Turret hinge (axis = attachment X = up) --------------------------------
 	local ringCFrame = at(0, 3.8, -0.6) * ALONG_Y
@@ -199,6 +225,7 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3): Tank
 		drive = drive,
 		steer = steer,
 		hinge = hinge,
+		barrelHinge = barrelHinge,
 		muzzle = muzzle,
 	}
 	TankBuilder.sizeForces(tank)
@@ -207,7 +234,7 @@ end
 
 -- Size drive force/torque from the current mass (call again after a driver sits).
 function TankBuilder.sizeForces(tank: Tank)
-	local mass = tank.hull.AssemblyMass + tank.turret.AssemblyMass
+	local mass = tank.hull.AssemblyMass + tank.turret.AssemblyMass + tank.barrel.AssemblyMass
 	local frictionAccel = workspace.Gravity * Config.Tank.GroundFriction
 	tank.drive.MaxAxesForce = Vector3.new(
 		mass * (Config.Tank.LateralGrip + frictionAccel),

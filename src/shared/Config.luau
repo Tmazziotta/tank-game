@@ -14,6 +14,11 @@ local Config = {
 		TurretTraverseSpeed = math.rad(80), -- capped turret speed relative to hull, rad/s
 		TurretGain = 7, -- proportional gain from angle error to turret speed
 		TurretMaxTorque = 5e5,
+		BarrelMinElevation = math.rad(-7), -- depression limit (hinge LowerAngle)
+		BarrelMaxElevation = math.rad(22), -- elevation limit (hinge UpperAngle)
+		BarrelElevationSpeed = math.rad(45), -- capped pitch speed, rad/s
+		BarrelGain = 8,
+		BarrelMaxTorque = 2e5,
 	},
 
 	Camera = {

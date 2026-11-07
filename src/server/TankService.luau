@@ -50,7 +50,7 @@ local function despawn(player: Player)
 end
 
 local function giveOwnership(tank: TankBuilder.Tank, player: Player)
-	for _, part in { tank.hull, tank.turret } do
+	for _, part in { tank.hull, tank.turret, tank.barrel } do
 		if part:CanSetNetworkOwnership() then
 			part:SetNetworkOwner(player)
 		end

@@ -9,6 +9,7 @@ return {
 	Seat = "DriverSeat",
 	Drive = "Drive", -- LinearVelocity under Hull
 	Steer = "Steer", -- AngularVelocity under Hull
-	TurretHinge = "TurretHinge", -- HingeConstraint under Hull
+	TurretHinge = "TurretHinge", -- HingeConstraint under Hull (yaw)
+	BarrelHinge = "BarrelHinge", -- HingeConstraint under Turret (pitch, positive = up)
 	Muzzle = "Muzzle", -- Attachment under Barrel; LookVector = firing direction
 }

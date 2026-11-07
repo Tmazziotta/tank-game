@@ -1,7 +1,7 @@
 --!strict
 -- Drives the local player's tank. The client owns the tank's physics, so setting the
 -- constraint targets locally is what moves it. W/S throttle, A/D rotate the hull, and the
--- turret hinge motor steers toward the mouse at a capped traverse speed.
+-- turret (yaw) and barrel (pitch) hinge motors steer toward the mouse at capped speeds.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,6 +20,7 @@ export type TankRefs = {
 	drive: LinearVelocity,
 	steer: AngularVelocity,
 	hinge: HingeConstraint,
+	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
 }
 
@@ -50,6 +51,7 @@ local function resolve(model: Model): TankRefs?
 	local drive = hull:FindFirstChild(TankSchema.Drive)
 	local steer = hull:FindFirstChild(TankSchema.Steer)
 	local hinge = hull:FindFirstChild(TankSchema.TurretHinge)
+	local barrelHinge = turret:FindFirstChild(TankSchema.BarrelHinge)
 	local muzzle = barrel:FindFirstChild(TankSchema.Muzzle)
 	if
 		not (
@@ -59,6 +61,8 @@ local function resolve(model: Model): TankRefs?
 			and steer:IsA("AngularVelocity")
 			and hinge
 			and hinge:IsA("HingeConstraint")
+			and barrelHinge
+			and barrelHinge:IsA("HingeConstraint")
 			and muzzle
 			and muzzle:IsA("Attachment")
 		)
@@ -72,6 +76,7 @@ local function resolve(model: Model): TankRefs?
 		drive = drive,
 		steer = steer,
 		hinge = hinge,
+		barrelHinge = barrelHinge,
 		muzzle = muzzle,
 	}
 end
@@ -87,23 +92,45 @@ local function hullYaw(hullCFrame: CFrame, worldDir: Vector3): number
 	return math.atan2(-d.X, -d.Z)
 end
 
-local function aimTurret(tank: TankRefs)
-	local character = localPlayer.Character
-	local ignore: { Instance } = { tank.model }
-	if character then
-		table.insert(ignore, character)
-	end
-	local muzzleCFrame = tank.muzzle.WorldCFrame
-	local target = AimTarget.getPoint(ignore, muzzleCFrame.Position.Y)
+local function aimTurret(tank: TankRefs, target: Vector3)
 	local toTarget = target - tank.turret.Position
 	if Vector3.new(toTarget.X, 0, toTarget.Z).Magnitude < 2 then
 		tank.hinge.AngularVelocity = 0
 		return
 	end
 	local hullCFrame = tank.hull.CFrame
-	local err = wrapAngle(hullYaw(hullCFrame, toTarget) - hullYaw(hullCFrame, muzzleCFrame.LookVector))
+	local err = wrapAngle(hullYaw(hullCFrame, toTarget) - hullYaw(hullCFrame, tank.muzzle.WorldCFrame.LookVector))
 	local maxSpeed = Config.Tank.TurretTraverseSpeed
 	tank.hinge.AngularVelocity = math.clamp(err * Config.Tank.TurretGain, -maxSpeed, maxSpeed)
+end
+
+-- Pitch is measured in the turret-side trunnion frame (forward -Z, up +Y), so it stays
+-- correct when the hull is tilted.
+local function aimBarrel(tank: TankRefs, target: Vector3)
+	local pivot = (tank.barrelHinge.Attachment0 :: Attachment).WorldCFrame
+	local toTarget = pivot:PointToObjectSpace(target)
+	local horizontal = math.sqrt(toTarget.X ^ 2 + toTarget.Z ^ 2)
+	if horizontal < 2 then
+		tank.barrelHinge.AngularVelocity = 0
+		return
+	end
+	local cfg = Config.Tank
+	local desired = math.clamp(math.atan2(toTarget.Y, horizontal), cfg.BarrelMinElevation, cfg.BarrelMaxElevation)
+	local look = pivot:VectorToObjectSpace(tank.muzzle.WorldCFrame.LookVector)
+	local pitch = math.atan2(look.Y, math.sqrt(look.X ^ 2 + look.Z ^ 2))
+	local maxSpeed = cfg.BarrelElevationSpeed
+	tank.barrelHinge.AngularVelocity = math.clamp((desired - pitch) * cfg.BarrelGain, -maxSpeed, maxSpeed)
+end
+
+local function aim(tank: TankRefs)
+	local ignore: { Instance } = { tank.model }
+	local character = localPlayer.Character
+	if character then
+		table.insert(ignore, character)
+	end
+	local target = AimTarget.getPoint(ignore, tank.muzzle.WorldPosition.Y)
+	aimTurret(tank, target)
+	aimBarrel(tank, target)
 end
 
 local function step(_dt: number)
@@ -111,7 +138,7 @@ local function step(_dt: number)
 	if not tank then
 		return
 	end
-	aimTurret(tank)
+	aim(tank)
 	local throttle = axis(Enum.KeyCode.W, Enum.KeyCode.S)
 	local turn = axis(Enum.KeyCode.D, Enum.KeyCode.A)
 	local speed = if throttle >= 0 then Config.Tank.MaxForwardSpeed else Config.Tank.MaxReverseSpeed
