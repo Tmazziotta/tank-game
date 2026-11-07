@@ -1,1 +1,6 @@
-print("Hello world, from server!")
+--!strict
+-- Server bootstrap.
+
+local TankService = require(script.TankService)
+
+TankService.start()
