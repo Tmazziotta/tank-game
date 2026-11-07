@@ -35,7 +35,13 @@ function TankCamera.bind(hull: BasePart)
 		local cfg = Config.Camera
 		local base = hull.Position
 		local forward = flatForward(hull.CFrame)
-		local targetPos = base - forward * cfg.Distance + Vector3.yAxis * cfg.Height
+		-- Pull back and up with speed so you can see further ahead when moving fast.
+		local velocity = hull.AssemblyLinearVelocity
+		local planarSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+		local speedFraction = math.clamp(planarSpeed / Config.Tank.MaxForwardSpeed, 0, 1)
+		local distance = cfg.Distance + cfg.SpeedPullback * speedFraction
+		local height = cfg.Height + cfg.SpeedRise * speedFraction
+		local targetPos = base - forward * distance + Vector3.yAxis * height
 		local targetFocus = base + forward * cfg.LookAhead + Vector3.yAxis * cfg.LookHeight
 
 		local alpha = 1 - math.exp(-cfg.Smoothing * dt)

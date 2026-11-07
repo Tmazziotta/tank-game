@@ -32,6 +32,8 @@ local Config = {
 		LookAhead = 12, -- look-at point in front of the hull
 		LookHeight = 3,
 		Smoothing = 6, -- higher = snappier follow
+		SpeedPullback = 8, -- extra distance at full forward speed
+		SpeedRise = 3, -- extra height at full forward speed
 		FieldOfView = 70,
 	},
 
