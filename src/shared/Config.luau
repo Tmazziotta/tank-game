@@ -40,8 +40,8 @@ local Config = {
 		Range = 600,
 		RayBackOffset = 8, -- ray starts this far behind the muzzle so point-blank walls still register
 		BlastRadius = 7,
-		BlastImpulse = 65, -- velocity change (studs/s) given to chunks at the blast center
-		BlastUpwardBias = 0.35,
+		BlastImpulse = 90, -- velocity change (studs/s) given to chunks at the blast center
+		BlastUpwardBias = 0.5,
 		TracerLifetime = 0.18,
 	},
 
