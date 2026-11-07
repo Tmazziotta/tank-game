@@ -7,7 +7,7 @@ Roblox tank arena game with destructible maps. Rojo project: `src/` syncs into S
 - Server-authoritative: the server decides damage, hits, and destruction. Never trust the client.
 - Use `--!strict` and typed Luau. Small modules with single responsibilities.
 - Tunable values (speeds, damage, cooldowns, radii) live in `src/shared/Config.luau`.
-- After any change, playtest via the Studio MCP and check console output for errors.
+- After any change, run `scripts/typecheck.sh` (luau-lsp strict analysis; must report no errors), then playtest via the Studio MCP and check console output for errors.
 
 ## Layout
 - `src/shared` → `ReplicatedStorage.Shared` (Config, shared types, remotes)
