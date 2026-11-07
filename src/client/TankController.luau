@@ -18,7 +18,7 @@ export type TankRefs = {
 	hull: BasePart,
 	turret: BasePart,
 	drive: LinearVelocity,
-	steer: AngularVelocity,
+	steer: Torque,
 	hinge: HingeConstraint,
 	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
@@ -58,7 +58,7 @@ local function resolve(model: Model): TankRefs?
 			drive
 			and drive:IsA("LinearVelocity")
 			and steer
-			and steer:IsA("AngularVelocity")
+			and steer:IsA("Torque")
 			and hinge
 			and hinge:IsA("HingeConstraint")
 			and barrelHinge
@@ -133,7 +133,7 @@ local function aim(tank: TankRefs)
 	aimBarrel(tank, target)
 end
 
-local function step(_dt: number)
+local function step(dt: number)
 	local tank = current
 	if not tank then
 		return
@@ -142,9 +142,23 @@ local function step(_dt: number)
 	local throttle = axis(Enum.KeyCode.W, Enum.KeyCode.S)
 	local turn = axis(Enum.KeyCode.D, Enum.KeyCode.A)
 	local speed = if throttle >= 0 then Config.Tank.MaxForwardSpeed else Config.Tank.MaxReverseSpeed
-	-- Attachment space: -Z is forward. Positive world Y spin is counter-clockwise, so D = negative.
+	-- Attachment space: -Z is forward. Positive spin about up is counter-clockwise, so D = negative.
 	tank.drive.VectorVelocity = Vector3.new(0, 0, -throttle * speed)
-	tank.steer.AngularVelocity = Vector3.new(0, -turn * Config.Tank.TurnRate, 0)
+
+	-- Yaw-rate controller. Runs once per frame while physics substeps, so instead of a fixed
+	-- gain (which overshoots and chatters) it asks for the torque that closes a fraction of
+	-- the rate error within this frame, plus friction feed-forward while turning.
+	local cfg = Config.Tank
+	local targetRate = -turn * cfg.TurnRate
+	local yawRate = tank.hull.AssemblyAngularVelocity:Dot(tank.hull.CFrame.UpVector)
+	local maxTorque = tank.steer:GetAttribute(TankSchema.MaxTorqueAttribute)
+	local cap = if type(maxTorque) == "number" then maxTorque else 0
+	local inertia = tank.hull.AssemblyMass * cfg.YawInertiaPerMass
+	local torque = inertia * (targetRate - yawRate) * cfg.YawResponse / math.max(dt, 1 / 240)
+	if targetRate ~= 0 then
+		torque += math.sign(targetRate) * cap * cfg.YawFrictionCompensation
+	end
+	tank.steer.Torque = Vector3.new(0, math.clamp(torque, -cap, cap), 0)
 end
 
 local function unbind()

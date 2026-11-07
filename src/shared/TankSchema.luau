@@ -8,7 +8,8 @@ return {
 	Barrel = "Barrel",
 	Seat = "DriverSeat",
 	Drive = "Drive", -- LinearVelocity under Hull
-	Steer = "Steer", -- AngularVelocity under Hull
+	Steer = "Steer", -- Torque under Hull (yaw, hull-relative)
+	MaxTorqueAttribute = "MaxTorque", -- on Steer: torque cap for the client yaw controller
 	TurretHinge = "TurretHinge", -- HingeConstraint under Hull (yaw)
 	BarrelHinge = "BarrelHinge", -- HingeConstraint under Turret (pitch, positive = up)
 	Muzzle = "Muzzle", -- Attachment under Barrel; LookVector = firing direction

@@ -16,7 +16,8 @@ export type Tank = {
 	barrel: Part,
 	seat: Seat,
 	drive: LinearVelocity,
-	steer: AngularVelocity,
+	steer: Torque,
+	upright: AlignOrientation,
 	hinge: HingeConstraint,
 	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
@@ -58,6 +59,22 @@ local function makePart(
 	return part
 end
 
+local function makeWedge(parent: Instance, name: string, size: Vector3, cframe: CFrame): WedgePart
+	local wedge = Instance.new("WedgePart")
+	wedge.Name = name
+	wedge.Size = size
+	wedge.CFrame = cframe
+	wedge.Parent = parent
+	return wedge
+end
+
+-- Invisible ground-contact geometry.
+local function collider(part: BasePart)
+	part.Transparency = 1
+	part.CastShadow = false
+	part.CustomPhysicalProperties = contactPhysics()
+end
+
 local function weld(a: BasePart, b: BasePart)
 	local w = Instance.new("WeldConstraint")
 	w.Part0 = a
@@ -93,14 +110,33 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3): Tank
 
 	for _, side in { -1, 1 } do
 		local x = 3.4 * side
+		-- Visible treads keep their mass but don't collide: their flat ends and round caps
+		-- would butt into lips head-on. Ground contact is the invisible skid + ramps below.
 		local pod = makePart(model, "Tread", Enum.PartType.Cylinder, Vector3.new(10, 3, 3), at(x, 1.6, 0) * ALONG_Z, DARK)
-		pod.CustomPhysicalProperties = contactPhysics()
+		pod.CanCollide = false
+		pod.CanTouch = false
 		weld(hull, pod)
 		for _, z in { -5, 5 } do
 			local cap = makePart(model, "TreadCap", Enum.PartType.Ball, Vector3.new(3, 3, 3), at(x, 1.6, z), DARK)
-			cap.CustomPhysicalProperties = contactPhysics()
+			cap.CanCollide = false
+			cap.CanTouch = false
 			weld(hull, cap)
 		end
+
+		local skid = makePart(model, "Skid", Enum.PartType.Block, Vector3.new(3, 0.6, 6), at(x, 0.4, 0), DARK)
+		collider(skid)
+		weld(hull, skid)
+		-- Ramps rise ~20 degrees toward each end so a lip pushes the hull up, not back.
+		-- A WedgePart's solid sits under a slope descending toward -Z; rotating it 180 degrees
+		-- about Z puts the solid above a slope that rises toward -Z (front ramp), and about X
+		-- above a slope rising toward +Z (rear ramp).
+		local rampSize = Vector3.new(3, 1.3, 3.5)
+		local front = makeWedge(model, "FrontRamp", rampSize, at(x, 0.75, -4.75) * CFrame.Angles(0, 0, math.pi))
+		collider(front)
+		weld(hull, front)
+		local rear = makeWedge(model, "RearRamp", rampSize, at(x, 0.75, 4.75) * CFrame.Angles(math.pi, 0, 0))
+		collider(rear)
+		weld(hull, rear)
 		for _, z in { -3.3, 0, 3.3 } do
 			local wheel = makePart(model, "Wheel", Enum.PartType.Cylinder, Vector3.new(0.4, 2.2, 2.2), at(5.0 * side, 1.6, z), WHEEL)
 			decor(wheel)
@@ -205,14 +241,31 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3): Tank
 	drive.VectorVelocity = Vector3.zero
 	drive.Parent = hull
 
-	local steer = Instance.new("AngularVelocity")
+	-- Yaw torque about the hull's own up axis. The driving client sets it each frame from a
+	-- yaw-rate controller, capped by the MaxTorque attribute sized below.
+	local steer = Instance.new("Torque")
 	steer.Name = TankSchema.Steer
 	steer.Attachment0 = driveAttachment
-	-- World-relative: also holds pitch/roll at zero, which keeps the toy tank upright.
-	steer.RelativeTo = Enum.ActuatorRelativeTo.World
-	steer.AngularVelocity = Vector3.zero
-	steer.MaxTorque = 0
+	steer.RelativeTo = Enum.ActuatorRelativeTo.Attachment0
+	steer.Torque = Vector3.zero
 	steer.Parent = hull
+
+	-- Soft self-righting: only aligns the hull's up axis with world up, leaving yaw free
+	-- and letting the tank rock over lips and debris instead of wedging against them.
+	local uprightAttachment = Instance.new("Attachment")
+	uprightAttachment.Name = "UprightAttachment"
+	uprightAttachment.CFrame = ALONG_Y -- primary axis (X) = hull up
+	uprightAttachment.Parent = hull
+
+	local upright = Instance.new("AlignOrientation")
+	upright.Name = "Upright"
+	upright.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	upright.AlignType = Enum.AlignType.PrimaryAxisParallel
+	upright.Attachment0 = uprightAttachment
+	upright.CFrame = ALONG_Y -- target primary axis = world up
+	upright.Responsiveness = Config.Tank.UprightResponsiveness
+	upright.MaxTorque = 0
+	upright.Parent = hull
 
 	model.PrimaryPart = hull
 
@@ -224,6 +277,7 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3): Tank
 		seat = seat,
 		drive = drive,
 		steer = steer,
+		upright = upright,
 		hinge = hinge,
 		barrelHinge = barrelHinge,
 		muzzle = muzzle,
@@ -241,7 +295,8 @@ function TankBuilder.sizeForces(tank: Tank)
 		0,
 		mass * (Config.Tank.DriveAcceleration + frictionAccel)
 	)
-	tank.steer.MaxTorque = mass * Config.Tank.TurnTorquePerMass
+	tank.steer:SetAttribute(TankSchema.MaxTorqueAttribute, mass * Config.Tank.TurnTorquePerMass)
+	tank.upright.MaxTorque = mass * Config.Tank.UprightTorquePerMass
 end
 
 return TankBuilder

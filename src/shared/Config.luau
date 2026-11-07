@@ -9,7 +9,12 @@ local Config = {
 		DriveAcceleration = 45, -- studs/s^2 along the hull's forward axis
 		LateralGrip = 140, -- studs/s^2 of sideways correction (stops sliding)
 		TurnRate = math.rad(85), -- hull yaw speed, rad/s
-		TurnTorquePerMass = 500, -- AngularVelocity MaxTorque = mass * this
+		TurnTorquePerMass = 500, -- yaw torque cap = mass * this
+		YawInertiaPerMass = 16, -- yaw moment of inertia estimate = mass * this (~(L^2+W^2)/12)
+		YawResponse = 0.5, -- fraction of the yaw-rate error closed per frame (<1 avoids chatter)
+		YawFrictionCompensation = 0.28, -- feed-forward torque (fraction of cap) while turning; measured in playtest
+		UprightTorquePerMass = 400, -- self-righting torque cap = mass * this (soft: lets the hull rock)
+		UprightResponsiveness = 10,
 		GroundFriction = 0.15, -- friction on the tank's ground-contact parts
 		TurretTraverseSpeed = math.rad(80), -- capped turret speed relative to hull, rad/s
 		TurretGain = 7, -- proportional gain from angle error to turret speed
