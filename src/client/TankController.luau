@@ -1,6 +1,7 @@
 --!strict
 -- Drives the local player's tank. The client owns the tank's physics, so setting the
--- constraint targets locally is what moves it. W/S throttle, A/D rotate the hull.
+-- constraint targets locally is what moves it. W/S throttle, A/D rotate the hull, and the
+-- turret hinge motor steers toward the mouse at a capped traverse speed.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
+local AimTarget = require(script.Parent.AimTarget)
 local TankCamera = require(script.Parent.TankCamera)
 
 export type TankRefs = {
@@ -74,11 +76,42 @@ local function resolve(model: Model): TankRefs?
 	}
 end
 
+local function wrapAngle(a: number): number
+	return (a + math.pi) % (2 * math.pi) - math.pi
+end
+
+-- Yaw (about hull up) of a world direction, measured from hull forward.
+-- Positive = counter-clockwise from above, matching the hinge's positive direction.
+local function hullYaw(hullCFrame: CFrame, worldDir: Vector3): number
+	local d = hullCFrame:VectorToObjectSpace(worldDir)
+	return math.atan2(-d.X, -d.Z)
+end
+
+local function aimTurret(tank: TankRefs)
+	local character = localPlayer.Character
+	local ignore: { Instance } = { tank.model }
+	if character then
+		table.insert(ignore, character)
+	end
+	local muzzleCFrame = tank.muzzle.WorldCFrame
+	local target = AimTarget.getPoint(ignore, muzzleCFrame.Position.Y)
+	local toTarget = target - tank.turret.Position
+	if Vector3.new(toTarget.X, 0, toTarget.Z).Magnitude < 2 then
+		tank.hinge.AngularVelocity = 0
+		return
+	end
+	local hullCFrame = tank.hull.CFrame
+	local err = wrapAngle(hullYaw(hullCFrame, toTarget) - hullYaw(hullCFrame, muzzleCFrame.LookVector))
+	local maxSpeed = Config.Tank.TurretTraverseSpeed
+	tank.hinge.AngularVelocity = math.clamp(err * Config.Tank.TurretGain, -maxSpeed, maxSpeed)
+end
+
 local function step(_dt: number)
 	local tank = current
 	if not tank then
 		return
 	end
+	aimTurret(tank)
 	local throttle = axis(Enum.KeyCode.W, Enum.KeyCode.S)
 	local turn = axis(Enum.KeyCode.D, Enum.KeyCode.A)
 	local speed = if throttle >= 0 then Config.Tank.MaxForwardSpeed else Config.Tank.MaxReverseSpeed
