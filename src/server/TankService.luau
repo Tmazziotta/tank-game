@@ -1,12 +1,25 @@
 --!strict
 -- Tank lifecycle: one tank per player, spawned with their character, player seated as
--- driver and given network ownership of the tank so driving is responsive.
+-- driver and given network ownership of the tank so driving is responsive. When the
+-- driver dies (usually because the tank ran out of health) the tank becomes a burning
+-- wreck that lingers briefly; the player respawns with a new tank.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local MapLayout = require(script.Parent.MapLayout)
 local TankBuilder = require(script.Parent.TankBuilder)
-local TankSchema = require(game:GetService("ReplicatedStorage").Shared.TankSchema)
+local TankHealth = require(script.Parent.TankHealth)
+local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
+
+-- victim is nil for ownerless (dev dummy) tanks; position is nil if the hull fell out of the world.
+export type DestroyedHandler = (victim: Player?, victimName: string, killer: Player?, position: Vector3?) -> ()
+
+type Record = {
+	tank: TankBuilder.Tank,
+	owner: Player?,
+}
 
 local TankService = {}
 
@@ -17,43 +30,137 @@ local BODY_COLORS = {
 	Color3.fromRGB(255, 200, 70), -- sunflower
 	Color3.fromRGB(190, 120, 255), -- grape
 }
+local WRECK_COLOR = Color3.fromRGB(38, 36, 40)
 
 local tanks: { [Player]: TankBuilder.Tank } = {}
-local spawnCursor = 0
+local records: { [Model]: Record } = {}
+local destroyedHandlers: { DestroyedHandler } = {}
+local rng = Random.new()
 
-local function tanksFolder(): Folder
-	local existing = workspace:FindFirstChild("Tanks")
+local function folder(name: string): Folder
+	local existing = workspace:FindFirstChild(name)
 	if existing and existing:IsA("Folder") then
 		return existing
 	end
-	local folder = Instance.new("Folder")
-	folder.Name = "Tanks"
-	folder.Parent = workspace
-	return folder
+	local created = Instance.new("Folder")
+	created.Name = name
+	created.Parent = workspace
+	return created
 end
 
-local function nextSpawn(): CFrame
-	spawnCursor = spawnCursor % #MapLayout.SpawnPoints + 1
-	return MapLayout.SpawnPoints[spawnCursor]
+-- The spawn point farthest from every live tank, so nobody respawns in someone's sights.
+local function chooseSpawn(): CFrame
+	local best = MapLayout.SpawnPoints[rng:NextInteger(1, #MapLayout.SpawnPoints)]
+	local bestDistance = -math.huge
+	for _, spawnPoint in MapLayout.SpawnPoints do
+		local nearest = math.huge
+		for _, record in records do
+			if record.tank.hull.Parent then
+				nearest = math.min(nearest, (record.tank.hull.Position - spawnPoint.Position).Magnitude)
+			end
+		end
+		-- Small jitter breaks ties (e.g. an empty arena) randomly.
+		nearest += rng:NextNumber(0, 5)
+		if nearest > bestDistance then
+			best = spawnPoint
+			bestDistance = nearest
+		end
+	end
+	return best
 end
 
 local function colorFor(player: Player): Color3
 	return BODY_COLORS[player.UserId % #BODY_COLORS + 1]
 end
 
+-- Remove a tank without a wreck (player left, round reset).
 local function despawn(player: Player)
 	local tank = tanks[player]
 	if tank then
 		tanks[player] = nil
+		records[tank.model] = nil
+		TankHealth.unregister(tank.model)
 		tank.model:Destroy()
 	end
 end
 
-local function giveOwnership(tank: TankBuilder.Tank, player: Player)
+local function giveOwnership(tank: TankBuilder.Tank, owner: Player?)
 	for _, part in { tank.hull, tank.turret, tank.barrel } do
-		if part:CanSetNetworkOwnership() then
-			part:SetNetworkOwner(player)
+		if part.Parent and part:CanSetNetworkOwnership() then
+			part:SetNetworkOwner(owner)
 		end
+	end
+end
+
+local function burn(hull: BasePart)
+	local fire = Instance.new("Fire")
+	fire.Size = 8
+	fire.Heat = 12
+	fire.Parent = hull
+	local smoke = Instance.new("Smoke")
+	smoke.Color = Color3.fromRGB(40, 40, 45)
+	smoke.Opacity = 0.4
+	smoke.RiseVelocity = 8
+	smoke.Size = 4
+	smoke.Parent = hull
+end
+
+-- Turn a live tank into a burning wreck and announce its destruction.
+local function wreck(tank: TankBuilder.Tank)
+	local model = tank.model
+	local record = records[model]
+	if not record then
+		return
+	end
+	records[model] = nil
+	local owner = record.owner
+	if owner and tanks[owner] == tank then
+		tanks[owner] = nil
+	end
+	local killer = TankHealth.killerOf(model)
+	TankHealth.unregister(model)
+	model:SetAttribute(TankSchema.HealthAttribute, 0)
+
+	local hull = tank.hull
+	local position = if hull.Parent then hull.Position else nil
+	model.Parent = folder(TankSchema.WrecksFolder)
+
+	if position then
+		-- Server takes the physics back so the driver's client can't keep driving it.
+		giveOwnership(tank, nil)
+		tank.drive.Enabled = false
+		tank.steer.Enabled = false
+		tank.upright.Enabled = false
+		tank.barrelHinge.ActuatorType = Enum.ActuatorType.None
+		tank.hinge:Destroy() -- the turret pops off
+		tank.turret.CanCollide = true
+		tank.barrel.CanCollide = true
+
+		for _, descendant in model:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				descendant.Color = descendant.Color:Lerp(WRECK_COLOR, 0.75)
+				if descendant.Material == Enum.Material.Neon then
+					descendant.Material = Enum.Material.SmoothPlastic
+				end
+			end
+		end
+		burn(hull)
+
+		local up = hull.CFrame.UpVector
+		local spin = Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1))
+		hull:ApplyImpulse(up * Config.Respawn.WreckLaunchSpeed * hull.AssemblyMass)
+		hull:ApplyAngularImpulse(spin * 3 * hull.AssemblyMass)
+		local sideways = Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)) * 12
+		tank.turret:ApplyImpulse((Vector3.yAxis * Config.Respawn.TurretPopSpeed + sideways) * tank.turret.AssemblyMass)
+	end
+
+	task.delay(Config.Respawn.WreckLifetime, function()
+		model:Destroy()
+	end)
+
+	local victimName = if owner then owner.DisplayName else model.Name
+	for _, handler in destroyedHandlers do
+		task.spawn(handler, owner, victimName, killer, position)
 	end
 end
 
@@ -72,6 +179,18 @@ local function seatDriver(tank: TankBuilder.Tank, humanoid: Humanoid): boolean
 	return tank.seat.Occupant == humanoid
 end
 
+local function buildTank(spawnCFrame: CFrame, color: Color3, name: string, owner: Player?): TankBuilder.Tank
+	local tank = TankBuilder.build(spawnCFrame, color)
+	tank.model.Name = name
+	if owner then
+		tank.model:SetAttribute(TankSchema.OwnerAttribute, owner.UserId)
+	end
+	TankHealth.register(tank.model, Config.Combat.MaxHealth, Config.Combat.SpawnProtection)
+	records[tank.model] = { tank = tank, owner = owner }
+	tank.model.Parent = folder(TankSchema.TanksFolder)
+	return tank
+end
+
 local function spawnTank(player: Player, character: Model)
 	despawn(player)
 
@@ -81,10 +200,7 @@ local function spawnTank(player: Player, character: Model)
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = 0
 
-	local tank = TankBuilder.build(nextSpawn(), colorFor(player))
-	tank.model.Name = "Tank_" .. player.Name
-	tank.model:SetAttribute(TankSchema.OwnerAttribute, player.UserId)
-	tank.model.Parent = tanksFolder()
+	local tank = buildTank(chooseSpawn(), colorFor(player), "Tank_" .. player.Name, player)
 	tanks[player] = tank
 
 	if not seatDriver(tank, humanoid) then
@@ -105,16 +221,56 @@ local function spawnTank(player: Player, character: Model)
 	end)
 
 	humanoid.Died:Connect(function()
-		task.delay(1, function()
-			if tanks[player] == tank then
-				despawn(player)
-			end
-		end)
+		if tanks[player] == tank then
+			wreck(tank)
+		end
 	end)
+end
+
+-- Out of health: kill the driver (whose death wrecks the tank) or wreck it directly.
+local function onDepleted(model: Model, _killer: Player?)
+	local record = records[model]
+	if not record then
+		return
+	end
+	local owner = record.owner
+	local character = owner and owner.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.Health > 0 and humanoid.SeatPart == record.tank.seat then
+		humanoid.Health = 0
+	end
+	-- Covers drivers who were already out of their seat or dead.
+	wreck(record.tank)
 end
 
 function TankService.getTank(player: Player): TankBuilder.Tank?
 	return tanks[player]
+end
+
+-- Live tank (and its owner) for a tank model.
+function TankService.getByModel(model: Model): (TankBuilder.Tank?, Player?)
+	local record = records[model]
+	if record then
+		return record.tank, record.owner
+	end
+	return nil, nil
+end
+
+function TankService.onDestroyed(handler: DestroyedHandler)
+	table.insert(destroyedHandlers, handler)
+end
+
+-- Remove every wreck immediately (round reset).
+function TankService.clearWrecks()
+	folder(TankSchema.WrecksFolder):ClearAllChildren()
+end
+
+-- Studio testing: an ownerless, undriven tank to shoot at.
+function TankService.spawnDummy(spawnCFrame: CFrame): Model
+	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), "Dummy", nil)
+	tank.model:SetAttribute(TankSchema.ProtectedUntilAttribute, 0)
+	TankHealth.endProtection(tank.model)
+	return tank.model
 end
 
 local function onPlayerAdded(player: Player)
@@ -127,6 +283,8 @@ local function onPlayerAdded(player: Player)
 end
 
 function TankService.start()
+	Players.RespawnTime = Config.Respawn.Delay
+	TankHealth.onDepleted(onDepleted)
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(despawn)
 	for _, player in Players:GetPlayers() do

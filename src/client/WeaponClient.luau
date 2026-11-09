@@ -7,8 +7,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local Hud = require(script.Parent.Hud)
 local ShotEffects = require(script.Parent.ShotEffects)
 local TankController = require(script.Parent.TankController)
@@ -17,6 +19,9 @@ local WeaponClient = {}
 
 local localPlayer = Players.LocalPlayer
 local REQUEST_TIMEOUT = 0.5 -- don't spam requests while waiting for confirmation
+local HIT_COLOR = Color3.fromRGB(255, 220, 90)
+local RICOCHET_COLOR = Color3.fromRGB(200, 220, 255)
+local SHIELD_COLOR = Color3.fromRGB(120, 200, 255)
 
 local lastConfirmed = -math.huge
 local lastRequested = -math.huge
@@ -57,6 +62,26 @@ local function barrelScreenPoint(): Vector2?
 	return if onScreen then Vector2.new(screen.X, screen.Y) else nil
 end
 
+-- Feedback for the shooter on what their shell did to a tank.
+local function showShotResult(report: CombatTypes.ShotReport)
+	local zone = string.upper(report.zone or "")
+	if report.kind == "Hit" then
+		Hud.showHitMarker(`-{report.damage or 0} {zone}`, HIT_COLOR)
+	elseif report.kind == "Ricochet" then
+		Hud.showHitMarker("RICOCHET", RICOCHET_COLOR)
+	elseif report.kind == "Shielded" then
+		Hud.showHitMarker("SPAWN SHIELD", SHIELD_COLOR)
+	end
+end
+
+local function updateHealth(model: Model)
+	local health = model:GetAttribute(TankSchema.HealthAttribute)
+	local maxHealth = model:GetAttribute(TankSchema.MaxHealthAttribute)
+	if type(health) == "number" and type(maxHealth) == "number" then
+		Hud.setHealth(health, maxHealth)
+	end
+end
+
 function WeaponClient.start()
 	Hud.mount()
 	ShotEffects.mount()
@@ -67,10 +92,19 @@ function WeaponClient.start()
 		end
 	end)
 
-	Remotes.ShotFired.OnClientEvent:Connect(function(shooter: Player, origin: Vector3, hitPosition: Vector3, didHit: boolean)
-		ShotEffects.play(origin, hitPosition, didHit)
+	Remotes.ShotFired.OnClientEvent:Connect(function(shooter: Player, report: CombatTypes.ShotReport)
+		ShotEffects.play(report)
 		if shooter == localPlayer then
 			lastConfirmed = os.clock()
+			showShotResult(report)
+		elseif report.victim == localPlayer and report.kind == "Hit" then
+			Hud.flashDamage((report.damage or 0) / Config.Combat.MaxHealth)
+		end
+	end)
+
+	Remotes.TankDestroyed.OnClientEvent:Connect(function(report: CombatTypes.DestroyedReport)
+		if report.position then
+			ShotEffects.tankExplosion(report.position)
 		end
 	end)
 
@@ -80,6 +114,10 @@ function WeaponClient.start()
 		if inTank then
 			Hud.setReload(reloadProgress())
 			Hud.update(barrelScreenPoint())
+			local tank = TankController.getTank()
+			if tank then
+				updateHealth(tank.model)
+			end
 		end
 	end)
 end

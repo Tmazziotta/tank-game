@@ -13,4 +13,11 @@ return {
 	TurretHinge = "TurretHinge", -- HingeConstraint under Hull (yaw)
 	BarrelHinge = "BarrelHinge", -- HingeConstraint under Turret (pitch, positive = up)
 	Muzzle = "Muzzle", -- Attachment under Barrel; LookVector = firing direction
+	-- Attributes on the tank model, written by the server for clients to display.
+	HealthAttribute = "Health",
+	MaxHealthAttribute = "MaxHealth",
+	ProtectedUntilAttribute = "ProtectedUntil", -- workspace:GetServerTimeNow() timestamp
+	-- Workspace folders.
+	TanksFolder = "Tanks",
+	WrecksFolder = "Wrecks",
 }

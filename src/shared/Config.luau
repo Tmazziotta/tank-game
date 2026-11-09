@@ -59,6 +59,37 @@ local Config = {
 		MinWeldsWhenUnsupported = 3,
 		CollapsePasses = 4, -- cascade depth per blast; caps chain reactions
 	},
+
+	Combat = {
+		MaxHealth = 100,
+		ShellDamage = 40, -- before armor and angle multipliers
+		-- Damage multipliers per plate: front armor > sides > rear.
+		FrontArmorMultiplier = 0.6,
+		SideArmorMultiplier = 1.0,
+		RearArmorMultiplier = 1.5,
+		FrontArc = math.rad(45), -- plate normal within this of the facing = front (same for rear)
+		-- Impact angle is measured from the plate's surface normal (0 = square-on).
+		FullDamageAngle = math.rad(25), -- full damage up to here
+		RicochetAngle = math.rad(70), -- at or past this the shell bounces off: no damage
+		GrazeMultiplier = 0.5, -- damage multiplier just short of the ricochet angle
+		SpawnProtection = 3, -- seconds; firing ends it early
+		KillCreditWindow = 15, -- a death this soon after being hit credits the attacker
+		WreckBlastRadius = 9, -- a dying tank blows chunks out of nearby walls
+	},
+
+	Respawn = {
+		Delay = 5, -- Players.RespawnTime
+		WreckLifetime = 5,
+		WreckLaunchSpeed = 22, -- upward kick given to the hull when it explodes
+		TurretPopSpeed = 45, -- the turret flies off
+	},
+
+	Round = {
+		MinPlayers = 2, -- below this the server waits (players can still drive and shoot)
+		Intermission = 10,
+		Duration = 180,
+		Results = 8,
+	},
 }
 
 return Config

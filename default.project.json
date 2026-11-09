@@ -13,6 +13,9 @@
         },
         "ShotFired": {
           "$className": "RemoteEvent"
+        },
+        "TankDestroyed": {
+          "$className": "RemoteEvent"
         }
       }
     },
@@ -31,6 +34,12 @@
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
+      },
+      "Tanks": {
+        "$className": "Folder"
+      },
+      "Wrecks": {
+        "$className": "Folder"
       },
       "Baseplate": {
         "$className": "Part",

@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local ShotEffects = {}
@@ -12,6 +13,8 @@ local ShotEffects = {}
 local TRACER_COLOR = Color3.fromRGB(255, 230, 120)
 local FLASH_COLOR = Color3.fromRGB(255, 200, 90)
 local BLAST_COLOR = Color3.fromRGB(255, 130, 50)
+local SPARK_COLOR = Color3.fromRGB(255, 250, 220)
+local SHIELD_COLOR = Color3.fromRGB(120, 200, 255)
 
 local folder = Instance.new("Folder")
 folder.Name = "ClientEffects"
@@ -60,8 +63,7 @@ local function muzzleFlash(origin: Vector3)
 	fadeOut(flash, 0.15, { Size = Vector3.one * 4 })
 end
 
-local function impact(position: Vector3)
-	local radius = Config.Weapon.BlastRadius
+local function impact(position: Vector3, radius: number, sparkCount: number)
 	local ball = effectPart(Enum.PartType.Ball, Vector3.one * 2, CFrame.new(position), BLAST_COLOR)
 	ball.Transparency = 0.2
 	fadeOut(ball, 0.35, { Size = Vector3.one * radius * 2 })
@@ -95,8 +97,8 @@ local function impact(position: Vector3)
 	smoke.Acceleration = Vector3.new(0, 6, 0)
 	smoke.Enabled = false
 	smoke.Parent = holder
-	sparks:Emit(30)
-	smoke:Emit(12)
+	sparks:Emit(sparkCount)
+	smoke:Emit(math.round(sparkCount * 0.4))
 	task.delay(2, function()
 		holder:Destroy()
 	end)
@@ -106,12 +108,32 @@ function ShotEffects.mount()
 	folder.Parent = workspace
 end
 
-function ShotEffects.play(origin: Vector3, hitPosition: Vector3, didHit: boolean)
-	muzzleFlash(origin)
-	tracer(origin, hitPosition)
-	if didHit then
-		impact(hitPosition)
+-- A small bright flash where a shell glanced off or splashed on a shield.
+local function glance(position: Vector3, color: Color3)
+	local flash = effectPart(Enum.PartType.Ball, Vector3.one * 1, CFrame.new(position), color)
+	fadeOut(flash, 0.25, { Size = Vector3.one * 5 })
+end
+
+function ShotEffects.play(report: CombatTypes.ShotReport)
+	muzzleFlash(report.origin)
+	tracer(report.origin, report.hit)
+	local kind = report.kind
+	if kind == "World" or kind == "Hit" then
+		impact(report.hit, Config.Weapon.BlastRadius, 30)
+	elseif kind == "Ricochet" then
+		glance(report.hit, SPARK_COLOR)
+		local incoming = (report.hit - report.origin).Unit
+		local normal = report.normal or -incoming
+		local bounced = incoming - 2 * incoming:Dot(normal) * normal
+		tracer(report.hit, report.hit + bounced * 30)
+	elseif kind == "Shielded" then
+		glance(report.hit, SHIELD_COLOR)
 	end
+end
+
+-- A tank blowing up.
+function ShotEffects.tankExplosion(position: Vector3)
+	impact(position, Config.Combat.WreckBlastRadius * 1.5, 70)
 end
 
 return ShotEffects
