@@ -162,6 +162,19 @@ function PlayerData.upgradesFor(data: Data, tankId: string): PlayerDataTypes.Upg
 	return levels
 end
 
+-- Wipe the player's progress back to a brand-new profile (testing / support).
+function PlayerData.reset(player: Player): boolean
+	return PlayerData.update(player, function(data)
+		local fresh = template()
+		for key in table.clone(data :: any) do
+			(data :: any)[key] = nil
+		end
+		for key, value in fresh :: any do
+			(data :: any)[key] = value
+		end
+	end)
+end
+
 -- Whether saves persist (false in Studio without API access: ProfileStore's mock).
 function PlayerData.isPersistent(): boolean
 	return ProfileStore.DataStoreState == "Access"

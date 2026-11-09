@@ -42,6 +42,13 @@ local commands: { [string]: (...any) -> any } = {
 		end)
 		return PlayerData.get(player)
 	end,
+	-- resetData(playerName): wipe a player's saved progress to a fresh profile.
+	resetData = function(playerName: string)
+		local player = Players:FindFirstChild(playerName)
+		assert(player and player:IsA("Player"), `no player {playerName}`)
+		PlayerData.reset(player)
+		return PlayerData.get(player)
+	end,
 	-- setRound(key, value): tweak a Config.Round value live, e.g. ("MinPlayers", 1).
 	setRound = function(key: string, value: number)
 		(Config.Round :: any)[key] = value
