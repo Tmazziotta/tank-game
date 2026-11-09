@@ -1,22 +1,49 @@
 --!strict
--- Third-person camera that trails the hull's yaw with exponential smoothing.
+-- Mouse-look tank camera. The mouse is locked to the screen center and orbits the camera
+-- around the tank (yaw + pitch), independent of the hull, so you drive with WASD and aim
+-- with the mouse. The screen center is the aim point; the turret follows it. The camera
+-- follows the hull's position smoothly, pulls back with speed, and pulls in to avoid walls.
 
-local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local TankCamera = {}
 
 local BIND_NAME = "TankCamera"
-local bound = false
-local smoothedPos: Vector3? = nil
-local smoothedFocus: Vector3? = nil
+local WALL_MARGIN = 1.5 -- keep this far in front of a wall between camera and tank
 
-local function flatForward(cf: CFrame): Vector3
+local bound = false
+local yaw = 0 -- world yaw, radians (0 = looking toward -Z)
+local pitch = 0
+local smoothedFocus: Vector3? = nil
+local smoothedDistance: number? = nil
+
+local function flatYaw(cf: CFrame): number
 	local look = cf.LookVector
-	local flat = Vector3.new(look.X, 0, look.Z)
-	return if flat.Magnitude > 1e-3 then flat.Unit else Vector3.new(0, 0, -1)
+	return math.atan2(-look.X, -look.Z)
+end
+
+-- Raycast params ignoring the tank, the local character and client-only effects.
+local function cameraParams(tankModel: Instance): RaycastParams
+	local ignore: { Instance } = { tankModel }
+	local character = Players.LocalPlayer.Character
+	if character then
+		table.insert(ignore, character)
+	end
+	for _, name in { "ClientEffects", "TankOverlays", "Debris" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			table.insert(ignore, folder)
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignore
+	return params
 end
 
 function TankCamera.bind(hull: BasePart)
@@ -24,8 +51,10 @@ function TankCamera.bind(hull: BasePart)
 	local camera = workspace.CurrentCamera
 	camera.CameraType = Enum.CameraType.Scriptable
 	camera.FieldOfView = Config.Camera.FieldOfView
-	smoothedPos = nil
+	yaw = flatYaw(hull.CFrame)
+	pitch = Config.Camera.DefaultPitch
 	smoothedFocus = nil
+	smoothedDistance = nil
 	bound = true
 
 	RunService:BindToRenderStep(BIND_NAME, Enum.RenderPriority.Camera.Value + 1, function(dt: number)
@@ -33,23 +62,36 @@ function TankCamera.bind(hull: BasePart)
 			return
 		end
 		local cfg = Config.Camera
-		local base = hull.Position
-		local forward = flatForward(hull.CFrame)
-		-- Pull back and up with speed so you can see further ahead when moving fast.
+
+		-- Mouse look. Re-assert the lock every frame: menus and focus changes can release it.
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		local delta = UserInputService:GetMouseDelta()
+		yaw -= delta.X * cfg.MouseSensitivity
+		pitch = math.clamp(pitch - delta.Y * cfg.MouseSensitivity, cfg.MinPitch, cfg.MaxPitch)
+
+		-- Pull back with speed so you can see further ahead when moving fast.
 		local velocity = hull.AssemblyLinearVelocity
 		local planarSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 		local speedFraction = math.clamp(planarSpeed / Config.Tank.MaxForwardSpeed, 0, 1)
-		local distance = cfg.Distance + cfg.SpeedPullback * speedFraction
-		local height = cfg.Height + cfg.SpeedRise * speedFraction
-		local targetPos = base - forward * distance + Vector3.yAxis * height
-		local targetFocus = base + forward * cfg.LookAhead + Vector3.yAxis * cfg.LookHeight
-
 		local alpha = 1 - math.exp(-cfg.Smoothing * dt)
-		local pos = if smoothedPos then smoothedPos:Lerp(targetPos, alpha) else targetPos
+		local targetDistance = cfg.Distance + cfg.SpeedPullback * speedFraction
+		local distance = if smoothedDistance then smoothedDistance + (targetDistance - smoothedDistance) * alpha else targetDistance
+		smoothedDistance = distance
+
+		-- Rotation follows the mouse instantly; only the position is smoothed.
+		local targetFocus = hull.Position + Vector3.yAxis * cfg.FocusHeight
 		local focus = if smoothedFocus then smoothedFocus:Lerp(targetFocus, alpha) else targetFocus
-		smoothedPos = pos
 		smoothedFocus = focus
-		camera.CFrame = CFrame.lookAt(pos, focus)
+
+		local rotation = CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+		local desired = focus + rotation:VectorToWorldSpace(Vector3.new(0, 0, distance)) + Vector3.yAxis * cfg.Lift
+
+		-- Don't let walls come between the camera and the tank.
+		local offset = desired - focus
+		local hit = workspace:Raycast(focus, offset, cameraParams(hull.Parent :: Instance))
+		local position = if hit then focus + offset.Unit * math.max(hit.Distance - WALL_MARGIN, 2) else desired
+
+		camera.CFrame = CFrame.new(position) * rotation
 	end)
 end
 
@@ -57,6 +99,7 @@ function TankCamera.unbind()
 	if bound then
 		RunService:UnbindFromRenderStep(BIND_NAME)
 		bound = false
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 		workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 	end
 end

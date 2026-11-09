@@ -1,5 +1,5 @@
 --!strict
--- Tank HUD: a cursor crosshair, a marker for where the barrel actually points, a reload
+-- Tank HUD: a screen-center crosshair, a marker for where the barrel actually points, a reload
 -- bar, a health bar, hit markers and a damage flash. Pure view: other modules push state
 -- into it.
 
@@ -202,9 +202,9 @@ end
 
 -- Called every frame with viewport positions (nil hides the barrel marker).
 function Hud.update(barrelScreenPoint: Vector2?)
-	local mouse = UserInputService:GetMouseLocation()
-	crosshair.Position = UDim2.fromOffset(mouse.X, mouse.Y)
-	hitMarker.Position = UDim2.fromOffset(mouse.X, mouse.Y - 22)
+	local center = workspace.CurrentCamera.ViewportSize / 2
+	crosshair.Position = UDim2.fromOffset(center.X, center.Y)
+	hitMarker.Position = UDim2.fromOffset(center.X, center.Y - 22)
 	if barrelScreenPoint then
 		barrelMarker.Visible = true
 		barrelMarker.Position = UDim2.fromOffset(barrelScreenPoint.X, barrelScreenPoint.Y)

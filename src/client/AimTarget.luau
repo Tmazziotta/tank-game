@@ -1,8 +1,6 @@
 --!strict
--- World point under the mouse cursor. Falls back to a horizontal plane at the given
--- height when the cursor points at the sky.
-
-local UserInputService = game:GetService("UserInputService")
+-- World point under the screen center (the mouse-look crosshair). Falls back to a
+-- horizontal plane at the given height when the center points at the sky.
 
 local AimTarget = {}
 
@@ -10,8 +8,8 @@ local MAX_DISTANCE = 1000
 
 function AimTarget.getPoint(ignore: { Instance }, fallbackHeight: number): Vector3
 	local camera = workspace.CurrentCamera
-	local mouse = UserInputService:GetMouseLocation()
-	local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
+	local center = camera.ViewportSize / 2
+	local ray = camera:ViewportPointToRay(center.X, center.Y)
 
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude

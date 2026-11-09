@@ -27,13 +27,16 @@ local Config = {
 	},
 
 	Camera = {
-		Distance = 34, -- behind the hull
-		Height = 18,
-		LookAhead = 12, -- look-at point in front of the hull
-		LookHeight = 3,
-		Smoothing = 6, -- higher = snappier follow
+		-- Mouse-look orbit around the tank; the screen center is the aim point.
+		MouseSensitivity = math.rad(0.25), -- radians of camera turn per pixel of mouse movement
+		DefaultPitch = math.rad(-10), -- negative = looking down
+		MinPitch = math.rad(-40),
+		MaxPitch = math.rad(15),
+		Distance = 30, -- orbit radius around the focus point
+		FocusHeight = 5, -- orbit focus above the hull center
+		Lift = 5, -- extra camera height so the tank sits below the crosshair
+		Smoothing = 10, -- position follow; higher = snappier (rotation is never smoothed)
 		SpeedPullback = 8, -- extra distance at full forward speed
-		SpeedRise = 3, -- extra height at full forward speed
 		FieldOfView = 70,
 	},
 
