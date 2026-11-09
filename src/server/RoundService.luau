@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local BotService = require(script.Parent.BotService)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
@@ -24,8 +25,9 @@ local function setPhase(phase: RoundSchema.Phase, duration: number?)
 	)
 end
 
+-- Bots count, so a solo player with a bot gets real rounds.
 local function enoughPlayers(): boolean
-	return #Players:GetPlayers() >= Config.Round.MinPlayers
+	return #Players:GetPlayers() + BotService.count() >= Config.Round.MinPlayers
 end
 
 -- Waits `seconds`, returning false early if `abort` becomes true.
@@ -48,13 +50,14 @@ local function startRound()
 	for _, player in Players:GetPlayers() do
 		task.spawn(player.LoadCharacter, player)
 	end
+	BotService.respawnAll()
 end
 
 local function endRound()
 	ScoreService.setCounting(false)
 	TankHealth.setEnabled(false)
 	local winner, kills = ScoreService.winner()
-	ReplicatedStorage:SetAttribute(RoundSchema.WinnerAttribute, if winner then winner.DisplayName else "")
+	ReplicatedStorage:SetAttribute(RoundSchema.WinnerAttribute, winner or "")
 	ReplicatedStorage:SetAttribute(RoundSchema.WinnerKillsAttribute, kills)
 	setPhase("Results", Config.Round.Results)
 	task.wait(Config.Round.Results)

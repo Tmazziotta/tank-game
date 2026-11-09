@@ -159,9 +159,9 @@ end
 
 local function addFeedEntry(report: CombatTypes.DestroyedReport)
 	feedOrder += 1
-	local killer = report.killer
-	local text = if killer then `{killer.DisplayName}  >  {report.victimName}` else `{report.victimName} was destroyed`
-	local involved = killer == localPlayer or report.victim == localPlayer
+	local killerName = report.killerName
+	local text = if killerName then `{killerName}  >  {report.victimName}` else `{report.victimName} was destroyed`
+	local involved = (report.killer ~= nil and report.killer == localPlayer) or report.victim == localPlayer
 
 	local entry = Instance.new("TextLabel")
 	entry.LayoutOrder = feedOrder
@@ -205,7 +205,7 @@ end
 local function onTankDestroyed(report: CombatTypes.DestroyedReport)
 	addFeedEntry(report)
 	if report.victim == localPlayer and phase() ~= "Results" then
-		local by = if report.killer then `by {report.killer.DisplayName}` else ""
+		local by = if report.killerName then `by {report.killerName}` else ""
 		deathBannerUntil = os.clock() + Config.Respawn.Delay
 		showBanner(`DESTROYED {by}\nRespawning in {Config.Respawn.Delay}`, RED, Config.Respawn.Delay)
 	elseif report.killer == localPlayer and report.victim ~= localPlayer then

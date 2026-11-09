@@ -16,6 +16,7 @@ export type CoverPlacement = {
 local MapLayout = {}
 
 local CENTER = Vector3.new(0, 0, 20)
+MapLayout.Center = CENTER
 
 local function facingCenter(x: number, z: number): CFrame
 	local pos = Vector3.new(x, 0.1, z)

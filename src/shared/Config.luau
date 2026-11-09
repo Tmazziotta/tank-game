@@ -84,6 +84,35 @@ local Config = {
 		TurretPopSpeed = 45, -- the turret flies off
 	},
 
+	Bots = {
+		Count = 0, -- AI tanks on live servers
+		StudioCount = 1, -- Studio playtests get this many, so solo testing has an opponent
+		Color = Color3.fromRGB(150, 155, 170),
+		-- Fighting distance: close in beyond MaxRange, back off inside MinRange, circle between.
+		MinRange = 28,
+		MaxRange = 80,
+		BackoffMargin = 10, -- once backing off, keep going until MinRange + this
+		OrbitAngle = math.rad(60), -- heading offset from the target while circling (angles the armor)
+		OrbitFlipMin = 4, -- seconds between switching circling direction (random in range)
+		OrbitFlipMax = 9,
+		CircleThrottle = 0.6,
+		ReactionTime = 0.8, -- seconds a target must be in sight before the first shot
+		AimScatter = 2.5, -- studs of random aim offset, re-rolled after every shot
+		AimTolerance = math.rad(3), -- fire once the barrel is this close to the aim point
+		BreachRange = 35, -- shoot destructible walls this close when they hide the target
+		RetargetInterval = 0.5,
+		HiddenTargetPenalty = 60, -- studs added to a target's distance when it is out of sight
+		AvoidDistance = 14, -- look-ahead for walls
+		AvoidRadius = 4.5, -- sphere cast radius: about half the tank's width
+		AvoidCommitTime = 1.5, -- keep swerving to the same side this long (follows walls around)
+		SteerSoftAngle = math.rad(30), -- heading error that gets full turn input
+		StuckSpeed = 1.5, -- below this (studs/s) while driving or turning counts as stuck...
+		StuckSpin = 0.15, -- ...if also turning slower than this (rad/s)
+		StuckTime = 1.2,
+		UnstickTime = 1.0, -- reverse-and-turn duration when stuck
+		WanderRadius = 90, -- around the arena center, when there is no one to fight
+	},
+
 	Round = {
 		MinPlayers = 2, -- below this the server waits (players can still drive and shoot)
 		Intermission = 10,

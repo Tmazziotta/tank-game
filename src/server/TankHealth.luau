@@ -4,15 +4,16 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
-export type DepletedHandler = (model: Model, killer: Player?) -> ()
+export type DepletedHandler = (model: Model, killer: Combatant.Combatant?) -> ()
 
 type State = {
 	health: number,
 	protectedUntil: number,
-	lastAttacker: Player?,
+	lastAttacker: Combatant.Combatant?,
 	lastAttackedAt: number,
 	depleted: boolean,
 }
@@ -81,7 +82,7 @@ function TankHealth.onDepleted(handler: DepletedHandler)
 end
 
 -- Who gets credit if this tank dies now: its last attacker, if recent enough.
-function TankHealth.killerOf(model: Model): Player?
+function TankHealth.killerOf(model: Model): Combatant.Combatant?
 	local state = states[model]
 	if state and now() - state.lastAttackedAt <= Config.Combat.KillCreditWindow then
 		return state.lastAttacker
@@ -90,7 +91,7 @@ function TankHealth.killerOf(model: Model): Player?
 end
 
 -- Applies damage and returns how much was dealt (0 if protected, disabled or dead).
-function TankHealth.damage(model: Model, amount: number, attacker: Player?): number
+function TankHealth.damage(model: Model, amount: number, attacker: Combatant.Combatant?): number
 	local state = states[model]
 	if not enabled or not state or state.depleted or amount <= 0 or now() < state.protectedUntil then
 		return 0

@@ -12,13 +12,14 @@ export type ShotReport = {
 	normal: Vector3?, -- surface normal at the hit (tank hits only)
 	damage: number?, -- damage dealt (Hit only)
 	zone: string?, -- "Front" | "Side" | "Rear" (tank hits only)
-	victim: Player?, -- owner of the tank that was struck
+	victim: Player?, -- player driving the tank that was struck (nil for bots)
 }
 
 export type DestroyedReport = {
 	victimName: string,
-	victim: Player?,
-	killer: Player?,
+	victim: Player?, -- nil for bots
+	killerName: string?, -- nil if nobody gets credit
+	killer: Player?, -- nil for bots
 	position: Vector3?,
 }
 

@@ -8,17 +8,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Armor = require(script.Parent.Armor)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
+local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
 
-export type ImpactHandler = (position: Vector3, shooter: Player) -> ()
+export type ImpactHandler = (position: Vector3, shooter: Combatant.Combatant) -> ()
 
 local WeaponService = {}
 
-local lastFired: { [Player]: number } = {}
+local lastFired: { [Combatant.Combatant]: number } = setmetatable({}, { __mode = "k" }) :: any
+local impactHandler: ImpactHandler? = nil
 
 local function isTurretPart(tank: TankBuilder.Tank, part: BasePart): boolean
 	local root = part.AssemblyRootPart
@@ -32,7 +34,7 @@ local function hitTank(
 	part: BasePart,
 	direction: Vector3,
 	normal: Vector3,
-	shooter: Player
+	shooter: Combatant.Combatant
 ): boolean
 	local tank, owner = TankService.getByModel(model)
 	if not tank then
@@ -57,23 +59,14 @@ local function hitTank(
 	return true
 end
 
-local function fire(player: Player, onImpact: ImpactHandler)
-	local tank = TankService.getTank(player)
-	local character = player.Character
-	if not tank or not character then
-		return
-	end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid or humanoid.Health <= 0 or tank.seat.Occupant ~= humanoid then
-		return
-	end
-
+-- Fire `tank`'s gun on behalf of `shooter`, if its reload is done. Returns whether it fired.
+function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Combatant): boolean
 	local now = os.clock()
-	local last = lastFired[player]
+	local last = lastFired[shooter]
 	if last and now - last < Config.Weapon.Cooldown then
-		return
+		return false
 	end
-	lastFired[player] = now
+	lastFired[shooter] = now
 	-- Shooting gives up spawn protection.
 	TankHealth.endProtection(tank.model)
 
@@ -104,25 +97,37 @@ local function fire(player: Player, onImpact: ImpactHandler)
 		local part = result.Instance
 		local explodes = true
 		if victim and part:IsA("BasePart") then
-			explodes = hitTank(report, victim, part, direction, result.Normal, player)
+			explodes = hitTank(report, victim, part, direction, result.Normal, shooter)
 		else
 			report.kind = "World"
 		end
-		if explodes then
-			onImpact(report.hit, player)
+		local onImpact = impactHandler
+		if explodes and onImpact then
+			onImpact(report.hit, shooter)
 		end
 	end
-	Remotes.ShotFired:FireAllClients(player, report)
+	Remotes.ShotFired:FireAllClients(shooter.player, report)
+	return true
+end
+
+-- A player asked to fire: only allowed while alive and seated in their own tank.
+local function onFireRequest(player: Player)
+	local tank = TankService.getTank(player)
+	local character = player.Character
+	if not tank or not character then
+		return
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 or tank.seat.Occupant ~= humanoid then
+		return
+	end
+	WeaponService.fireFrom(tank, Combatant.forPlayer(player))
 end
 
 function WeaponService.start(onImpact: ImpactHandler)
+	impactHandler = onImpact
 	-- Any arguments a client sends are ignored on purpose.
-	Remotes.FireRequest.OnServerEvent:Connect(function(player: Player)
-		fire(player, onImpact)
-	end)
-	Players.PlayerRemoving:Connect(function(player)
-		lastFired[player] = nil
-	end)
+	Remotes.FireRequest.OnServerEvent:Connect(onFireRequest)
 end
 
 return WeaponService

@@ -7,18 +7,20 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapLayout = require(script.Parent.MapLayout)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
--- victim is nil for ownerless (dev dummy) tanks; position is nil if the hull fell out of the world.
-export type DestroyedHandler = (victim: Player?, victimName: string, killer: Player?, position: Vector3?) -> ()
+-- position is nil if the hull fell out of the world.
+export type DestroyedHandler = (victim: Combatant.Combatant, killer: Combatant.Combatant?, position: Vector3?) -> ()
 
 type Record = {
 	tank: TankBuilder.Tank,
-	owner: Player?,
+	owner: Player?, -- the driving player; nil for bots and dummies
+	combatant: Combatant.Combatant,
 }
 
 local TankService = {}
@@ -158,9 +160,8 @@ local function wreck(tank: TankBuilder.Tank)
 		model:Destroy()
 	end)
 
-	local victimName = if owner then owner.DisplayName else model.Name
 	for _, handler in destroyedHandlers do
-		task.spawn(handler, owner, victimName, killer, position)
+		task.spawn(handler, record.combatant, killer, position)
 	end
 end
 
@@ -179,15 +180,23 @@ local function seatDriver(tank: TankBuilder.Tank, humanoid: Humanoid): boolean
 	return tank.seat.Occupant == humanoid
 end
 
-local function buildTank(spawnCFrame: CFrame, color: Color3, name: string, owner: Player?): TankBuilder.Tank
+local function buildTank(
+	spawnCFrame: CFrame,
+	color: Color3,
+	name: string,
+	combatant: Combatant.Combatant,
+	owner: Player?
+): TankBuilder.Tank
 	local tank = TankBuilder.build(spawnCFrame, color)
 	tank.model.Name = name
 	if owner then
 		tank.model:SetAttribute(TankSchema.OwnerAttribute, owner.UserId)
 	end
 	TankHealth.register(tank.model, Config.Combat.MaxHealth, Config.Combat.SpawnProtection)
-	records[tank.model] = { tank = tank, owner = owner }
+	records[tank.model] = { tank = tank, owner = owner, combatant = combatant }
 	tank.model.Parent = folder(TankSchema.TanksFolder)
+	-- Assembly mass is only right once the welds are live in the workspace.
+	TankBuilder.sizeForces(tank)
 	return tank
 end
 
@@ -200,7 +209,7 @@ local function spawnTank(player: Player, character: Model)
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = 0
 
-	local tank = buildTank(chooseSpawn(), colorFor(player), "Tank_" .. player.Name, player)
+	local tank = buildTank(chooseSpawn(), colorFor(player), "Tank_" .. player.Name, Combatant.forPlayer(player), player)
 	tanks[player] = tank
 
 	if not seatDriver(tank, humanoid) then
@@ -228,7 +237,7 @@ local function spawnTank(player: Player, character: Model)
 end
 
 -- Out of health: kill the driver (whose death wrecks the tank) or wreck it directly.
-local function onDepleted(model: Model, _killer: Player?)
+local function onDepleted(model: Model, _killer: Combatant.Combatant?)
 	local record = records[model]
 	if not record then
 		return
@@ -265,10 +274,36 @@ function TankService.clearWrecks()
 	folder(TankSchema.WrecksFolder):ClearAllChildren()
 end
 
+-- Every live tank with who is fighting in it.
+function TankService.liveTanks(): { { tank: TankBuilder.Tank, combatant: Combatant.Combatant } }
+	local list = {}
+	for _, record in records do
+		table.insert(list, { tank = record.tank, combatant = record.combatant })
+	end
+	return list
+end
+
+-- An AI-driven tank at the best spawn point. The server simulates it (no network owner).
+function TankService.spawnBot(combatant: Combatant.Combatant, color: Color3): TankBuilder.Tank
+	local tank = buildTank(chooseSpawn(), color, combatant.name, combatant, nil)
+	giveOwnership(tank, nil)
+	return tank
+end
+
+-- Remove a live tank without a wreck or a death (e.g. a bot being respawned for a new round).
+function TankService.remove(model: Model)
+	local record = records[model]
+	if record then
+		records[model] = nil
+		TankHealth.unregister(model)
+	end
+	model:Destroy()
+end
+
 -- Studio testing: an ownerless, undriven tank to shoot at.
 function TankService.spawnDummy(spawnCFrame: CFrame): Model
-	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), "Dummy", nil)
-	tank.model:SetAttribute(TankSchema.ProtectedUntilAttribute, 0)
+	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), "Dummy", Combatant.bot("Dummy"), nil)
+	giveOwnership(tank, nil)
 	TankHealth.endProtection(tank.model)
 	return tank.model
 end

@@ -7,6 +7,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
+local BotService = require(script.Parent.BotService)
+local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
@@ -21,7 +23,13 @@ local commands: { [string]: (...any) -> any } = {
 	-- damage(model, amount, attackerName?): hurt a tank as if shot.
 	damage = function(model: Model, amount: number, attackerName: string?)
 		local attacker = if attackerName then Players:FindFirstChild(attackerName) else nil
-		return TankHealth.damage(model, amount, if attacker and attacker:IsA("Player") then attacker else nil)
+		local combatant = if attacker and attacker:IsA("Player") then Combatant.forPlayer(attacker) else nil
+		return TankHealth.damage(model, amount, combatant)
+	end,
+	-- setBots(count): add or remove AI tanks.
+	setBots = function(count: number)
+		BotService.setCount(count)
+		return BotService.count()
 	end,
 	-- setRound(key, value): tweak a Config.Round value live, e.g. ("MinPlayers", 1).
 	setRound = function(key: string, value: number)
