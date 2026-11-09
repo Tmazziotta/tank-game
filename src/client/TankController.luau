@@ -66,7 +66,7 @@ local function bind(model: Model)
 		return
 	end
 	current = refs
-	TankCamera.bind(refs.hull)
+	TankCamera.bind(refs)
 	RunService:BindToRenderStep(BIND_NAME, Enum.RenderPriority.Input.Value + 1, step)
 end
 

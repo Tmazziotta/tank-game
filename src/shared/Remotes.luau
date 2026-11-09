@@ -10,6 +10,8 @@ return {
 	FireRequest = folder:WaitForChild("FireRequest") :: RemoteEvent,
 	-- server -> all clients: (shooter: Player? (nil for bots), report: CombatTypes.ShotReport)
 	ShotFired = folder:WaitForChild("ShotFired") :: RemoteEvent,
+	-- client -> server: (className: string) — validated against Config.Classes
+	SelectClass = folder:WaitForChild("SelectClass") :: RemoteEvent,
 	-- server -> all clients: (report: CombatTypes.DestroyedReport)
 	TankDestroyed = folder:WaitForChild("TankDestroyed") :: RemoteEvent,
 }

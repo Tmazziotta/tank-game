@@ -5,7 +5,6 @@
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 
 local Hud = {}
 
@@ -156,7 +155,6 @@ end
 function Hud.setVisible(visible: boolean)
 	if gui.Enabled ~= visible then
 		gui.Enabled = visible
-		UserInputService.MouseIconEnabled = not visible
 	end
 end
 

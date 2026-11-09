@@ -6,6 +6,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local TankClass = require(ReplicatedStorage.Shared.TankClass)
 
 export type Zone = "Front" | "Side" | "Rear"
 
@@ -48,26 +49,34 @@ function Armor.angleMultiplier(impactAngle: number): number
 	return 1 + (c.GrazeMultiplier - 1) * t
 end
 
-function Armor.zoneMultiplier(zone: Zone): number
-	local c = Config.Combat
+-- Damage-taken multiplier of the victim's plate.
+function Armor.zoneMultiplier(zone: Zone, victim: TankClass.Spec): number
 	if zone == "Front" then
-		return c.FrontArmorMultiplier
+		return victim.FrontArmor
 	elseif zone == "Rear" then
-		return c.RearArmorMultiplier
+		return victim.RearArmor
 	end
-	return c.SideArmorMultiplier
+	return victim.SideArmor
 end
 
-function Armor.evaluate(shellDirection: Vector3, normal: Vector3, facing: Vector3, up: Vector3): Result
+-- `damage` is the shooter's base shell damage; `victim` the struck tank's class.
+function Armor.evaluate(
+	shellDirection: Vector3,
+	normal: Vector3,
+	facing: Vector3,
+	up: Vector3,
+	damage: number,
+	victim: TankClass.Spec
+): Result
 	local zone: Zone = Armor.zone(normal, facing, up)
 	local impactAngle = math.acos(math.clamp(-shellDirection.Unit:Dot(normal.Unit), -1, 1))
 	local angleMultiplier = Armor.angleMultiplier(impactAngle)
-	local damage = Config.Combat.ShellDamage * Armor.zoneMultiplier(zone) * angleMultiplier
+	local dealt = damage * Armor.zoneMultiplier(zone, victim) * angleMultiplier
 	return {
 		zone = zone,
 		impactAngle = impactAngle,
 		ricochet = angleMultiplier == 0,
-		damage = if angleMultiplier > 0 then math.max(1, math.round(damage)) else 0,
+		damage = if angleMultiplier > 0 then math.max(1, math.round(dealt)) else 0,
 	}
 end
 

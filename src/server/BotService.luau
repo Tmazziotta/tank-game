@@ -1,7 +1,8 @@
 --!strict
 -- AI tank lifecycle: keeps the configured number of bots in the arena, respawns them after
 -- they are destroyed (same delay as players), and steps their brains every frame. In Studio
--- it defaults to Config.Bots.StudioCount so solo playtests have an opponent.
+-- it defaults to Config.Bots.StudioCount so solo playtests have an opponent. Each life
+-- picks a random class.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -9,6 +10,7 @@ local RunService = game:GetService("RunService")
 local BotBrain = require(script.Parent.BotBrain)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
+local TankClass = require(ReplicatedStorage.Shared.TankClass)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankService = require(script.Parent.TankService)
 
@@ -22,12 +24,15 @@ type Bot = {
 local BotService = {}
 
 local bots: { Bot } = {}
+local rng = Random.new()
 
 local function spawnBot(bot: Bot)
 	if not bot.active or bot.tank then
 		return
 	end
-	local tank = TankService.spawnBot(bot.combatant, Config.Bots.Color)
+	-- A random class each life, so solo testing meets every class.
+	local className = TankClass.order[rng:NextInteger(1, #TankClass.order)]
+	local tank = TankService.spawnBot(bot.combatant, Config.Bots.Color, className)
 	bot.tank = tank
 	bot.brain = BotBrain.new(tank, bot.combatant)
 end

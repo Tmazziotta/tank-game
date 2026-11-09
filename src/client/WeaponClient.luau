@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local Hud = require(script.Parent.Hud)
+local MouseLock = require(script.Parent.MouseLock)
 local ShotEffects = require(script.Parent.ShotEffects)
 local TankController = require(script.Parent.TankController)
 
@@ -27,11 +28,13 @@ local lastConfirmed = -math.huge
 local lastRequested = -math.huge
 
 local function reloadProgress(): number
-	return math.clamp((os.clock() - lastConfirmed) / Config.Weapon.Cooldown, 0, 1)
+	local tank = TankController.getTank()
+	local cooldown = if tank then tank.spec.Cooldown else 1
+	return math.clamp((os.clock() - lastConfirmed) / cooldown, 0, 1)
 end
 
 local function tryFire()
-	if not TankController.getTank() then
+	if not TankController.getTank() or MouseLock.isReleased() then
 		return
 	end
 	local now = os.clock()
@@ -98,7 +101,9 @@ function WeaponClient.start()
 			lastConfirmed = os.clock()
 			showShotResult(report)
 		elseif report.victim == localPlayer and report.kind == "Hit" then
-			Hud.flashDamage((report.damage or 0) / Config.Combat.MaxHealth)
+			local tank = TankController.getTank()
+			local maxHealth = if tank then tank.model:GetAttribute(TankSchema.MaxHealthAttribute) else nil
+			Hud.flashDamage((report.damage or 0) / (if type(maxHealth) == "number" then maxHealth else 100))
 		end
 	end)
 
@@ -109,7 +114,8 @@ function WeaponClient.start()
 	end)
 
 	RunService.RenderStepped:Connect(function()
-		local inTank = TankController.getTank() ~= nil
+		-- The tank HUD steps aside while a menu (class picker) has the mouse.
+		local inTank = TankController.getTank() ~= nil and not MouseLock.isReleased()
 		Hud.setVisible(inTank)
 		if inTank then
 			Hud.setReload(reloadProgress())

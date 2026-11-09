@@ -4,6 +4,7 @@
 -- Whoever simulates a tank's physics calls these every frame.
 
 local Config = require(script.Parent.Config)
+local TankClass = require(script.Parent.TankClass)
 local TankSchema = require(script.Parent.TankSchema)
 
 export type Refs = {
@@ -15,6 +16,7 @@ export type Refs = {
 	hinge: HingeConstraint,
 	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
+	spec: TankClass.Spec,
 }
 
 local TankDrive = {}
@@ -57,6 +59,7 @@ function TankDrive.resolve(model: Model): Refs?
 		hinge = hinge,
 		barrelHinge = barrelHinge,
 		muzzle = muzzle,
+		spec = TankClass.ofModel(model),
 	}
 end
 
@@ -74,18 +77,19 @@ end
 -- throttle: -1 (reverse) .. 1 (forward). turn: -1 (left) .. 1 (right).
 function TankDrive.drive(tank: Refs, throttle: number, turn: number, dt: number)
 	local cfg = Config.Tank
-	local speed = if throttle >= 0 then cfg.MaxForwardSpeed else cfg.MaxReverseSpeed
+	local spec = tank.spec
+	local speed = if throttle >= 0 then spec.MaxForwardSpeed else spec.MaxReverseSpeed
 	-- Attachment space: -Z is forward. Positive spin about up is counter-clockwise, so right = negative.
 	tank.drive.VectorVelocity = Vector3.new(0, 0, -throttle * speed)
 
 	-- Yaw-rate controller. Runs once per frame while physics substeps, so instead of a fixed
 	-- gain (which overshoots and chatters) it asks for the torque that closes a fraction of
 	-- the rate error within this frame, plus friction feed-forward while turning.
-	local targetRate = -turn * cfg.TurnRate
+	local targetRate = -turn * spec.TurnRate
 	local yawRate = tank.hull.AssemblyAngularVelocity:Dot(tank.hull.CFrame.UpVector)
 	local maxTorque = tank.steer:GetAttribute(TankSchema.MaxTorqueAttribute)
 	local cap = if type(maxTorque) == "number" then maxTorque else 0
-	local inertia = tank.hull.AssemblyMass * cfg.YawInertiaPerMass
+	local inertia = tank.hull.AssemblyMass * cfg.YawInertiaPerMass * spec.Scale ^ 2
 	local torque = inertia * (targetRate - yawRate) * cfg.YawResponse / math.max(dt, 1 / 240)
 	if targetRate ~= 0 then
 		torque += math.sign(targetRate) * cap * cfg.YawFrictionCompensation
@@ -103,7 +107,7 @@ local function aimTurret(tank: Refs, target: Vector3)
 	local err = TankDrive.wrapAngle(
 		TankDrive.hullYaw(hullCFrame, toTarget) - TankDrive.hullYaw(hullCFrame, tank.muzzle.WorldCFrame.LookVector)
 	)
-	local maxSpeed = Config.Tank.TurretTraverseSpeed
+	local maxSpeed = tank.spec.TurretTraverseSpeed
 	tank.hinge.AngularVelocity = math.clamp(err * Config.Tank.TurretGain, -maxSpeed, maxSpeed)
 end
 

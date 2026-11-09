@@ -119,7 +119,7 @@ function ShotEffects.play(report: CombatTypes.ShotReport)
 	tracer(report.origin, report.hit)
 	local kind = report.kind
 	if kind == "World" or kind == "Hit" then
-		impact(report.hit, Config.Weapon.BlastRadius, 30)
+		impact(report.hit, report.radius, 30)
 	elseif kind == "Ricochet" then
 		glance(report.hit, SPARK_COLOR)
 		local incoming = (report.hit - report.origin).Unit

@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local MapLayout = require(script.Parent.MapLayout)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
+local TankClass = require(ReplicatedStorage.Shared.TankClass)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
 -- position is nil if the hull fell out of the world.
@@ -183,16 +184,17 @@ end
 local function buildTank(
 	spawnCFrame: CFrame,
 	color: Color3,
+	className: string,
 	name: string,
 	combatant: Combatant.Combatant,
 	owner: Player?
 ): TankBuilder.Tank
-	local tank = TankBuilder.build(spawnCFrame, color)
+	local tank = TankBuilder.build(spawnCFrame, color, className)
 	tank.model.Name = name
 	if owner then
 		tank.model:SetAttribute(TankSchema.OwnerAttribute, owner.UserId)
 	end
-	TankHealth.register(tank.model, Config.Combat.MaxHealth, Config.Combat.SpawnProtection)
+	TankHealth.register(tank.model, tank.spec.MaxHealth, Config.Combat.SpawnProtection)
 	records[tank.model] = { tank = tank, owner = owner, combatant = combatant }
 	tank.model.Parent = folder(TankSchema.TanksFolder)
 	-- Assembly mass is only right once the welds are live in the workspace.
@@ -209,7 +211,8 @@ local function spawnTank(player: Player, character: Model)
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = 0
 
-	local tank = buildTank(chooseSpawn(), colorFor(player), "Tank_" .. player.Name, Combatant.forPlayer(player), player)
+	local className = TankClass.normalize(player:GetAttribute(TankClass.Attribute))
+	local tank = buildTank(chooseSpawn(), colorFor(player), className, "Tank_" .. player.Name, Combatant.forPlayer(player), player)
 	tanks[player] = tank
 
 	if not seatDriver(tank, humanoid) then
@@ -284,8 +287,8 @@ function TankService.liveTanks(): { { tank: TankBuilder.Tank, combatant: Combata
 end
 
 -- An AI-driven tank at the best spawn point. The server simulates it (no network owner).
-function TankService.spawnBot(combatant: Combatant.Combatant, color: Color3): TankBuilder.Tank
-	local tank = buildTank(chooseSpawn(), color, combatant.name, combatant, nil)
+function TankService.spawnBot(combatant: Combatant.Combatant, color: Color3, className: string): TankBuilder.Tank
+	local tank = buildTank(chooseSpawn(), color, TankClass.normalize(className), combatant.name, combatant, nil)
 	giveOwnership(tank, nil)
 	return tank
 end
@@ -302,7 +305,7 @@ end
 
 -- Studio testing: an ownerless, undriven tank to shoot at.
 function TankService.spawnDummy(spawnCFrame: CFrame): Model
-	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), "Dummy", Combatant.bot("Dummy"), nil)
+	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), Config.DefaultClass, "Dummy", Combatant.bot("Dummy"), nil)
 	giveOwnership(tank, nil)
 	TankHealth.endProtection(tank.model)
 	return tank.model

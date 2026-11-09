@@ -16,6 +16,9 @@
         },
         "TankDestroyed": {
           "$className": "RemoteEvent"
+        },
+        "SelectClass": {
+          "$className": "RemoteEvent"
         }
       }
     },

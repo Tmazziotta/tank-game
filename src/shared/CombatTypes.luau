@@ -9,6 +9,7 @@ export type ShotReport = {
 	origin: Vector3,
 	hit: Vector3,
 	kind: ShotKind,
+	radius: number, -- blast radius of the shooter's gun
 	normal: Vector3?, -- surface normal at the hit (tank hits only)
 	damage: number?, -- damage dealt (Hit only)
 	zone: string?, -- "Front" | "Side" | "Rear" (tank hits only)

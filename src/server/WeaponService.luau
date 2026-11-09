@@ -15,7 +15,7 @@ local TankBuilder = require(script.Parent.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
 
-export type ImpactHandler = (position: Vector3, shooter: Combatant.Combatant) -> ()
+export type ImpactHandler = (position: Vector3, radius: number, shooter: Combatant.Combatant) -> ()
 
 local WeaponService = {}
 
@@ -34,6 +34,7 @@ local function hitTank(
 	part: BasePart,
 	direction: Vector3,
 	normal: Vector3,
+	damage: number,
 	shooter: Combatant.Combatant
 ): boolean
 	local tank, owner = TankService.getByModel(model)
@@ -43,7 +44,7 @@ local function hitTank(
 	end
 	-- Turret plates face where the gun points; everything else faces with the hull.
 	local facing = if isTurretPart(tank, part) then tank.muzzle.WorldCFrame.LookVector else tank.hull.CFrame.LookVector
-	local result = Armor.evaluate(direction, normal, facing, tank.hull.CFrame.UpVector)
+	local result = Armor.evaluate(direction, normal, facing, tank.hull.CFrame.UpVector, damage, tank.spec)
 	report.normal = normal
 	report.zone = result.zone
 	report.victim = owner
@@ -63,12 +64,13 @@ end
 function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Combatant): boolean
 	local now = os.clock()
 	local last = lastFired[shooter]
-	if last and now - last < Config.Weapon.Cooldown then
+	if last and now - last < tank.spec.Cooldown then
 		return false
 	end
 	lastFired[shooter] = now
-	-- Shooting gives up spawn protection.
+	-- Shooting gives up spawn protection and commits you to this tank.
 	TankHealth.endProtection(tank.model)
+	TankHealth.markEngaged(tank.model)
 
 	local muzzle = tank.muzzle.WorldCFrame
 	local direction = muzzle.LookVector
@@ -91,19 +93,20 @@ function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Comba
 		origin = muzzle.Position,
 		hit = if result then result.Position else muzzle.Position + direction * Config.Weapon.Range,
 		kind = "Miss",
+		radius = tank.spec.BlastRadius,
 	}
 	if result then
 		local victim = TankHealth.findTank(result.Instance)
 		local part = result.Instance
 		local explodes = true
 		if victim and part:IsA("BasePart") then
-			explodes = hitTank(report, victim, part, direction, result.Normal, shooter)
+			explodes = hitTank(report, victim, part, direction, result.Normal, tank.spec.Damage, shooter)
 		else
 			report.kind = "World"
 		end
 		local onImpact = impactHandler
 		if explodes and onImpact then
-			onImpact(report.hit, shooter)
+			onImpact(report.hit, tank.spec.BlastRadius, shooter)
 		end
 	end
 	Remotes.ShotFired:FireAllClients(shooter.player, report)

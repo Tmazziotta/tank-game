@@ -16,6 +16,7 @@ type State = {
 	lastAttacker: Combatant.Combatant?,
 	lastAttackedAt: number,
 	depleted: boolean,
+	engaged: boolean, -- has fired or taken damage since spawning
 }
 
 local TankHealth = {}
@@ -36,6 +37,7 @@ function TankHealth.register(model: Model, maxHealth: number, protection: number
 		lastAttacker = nil,
 		lastAttackedAt = -math.huge,
 		depleted = false,
+		engaged = false,
 	}
 	model:SetAttribute(TankSchema.MaxHealthAttribute, maxHealth)
 	model:SetAttribute(TankSchema.HealthAttribute, maxHealth)
@@ -71,6 +73,21 @@ function TankHealth.endProtection(model: Model)
 	end
 end
 
+-- The tank has fired: it is now in the fight (see isEngaged).
+function TankHealth.markEngaged(model: Model)
+	local state = states[model]
+	if state then
+		state.engaged = true
+	end
+end
+
+-- Whether the tank has fired or taken damage since it spawned. An unengaged tank can be
+-- swapped for another class at no cost.
+function TankHealth.isEngaged(model: Model): boolean
+	local state = states[model]
+	return state ~= nil and state.engaged
+end
+
 -- Globally switch damage on/off (off between rounds).
 function TankHealth.setEnabled(on: boolean)
 	enabled = on
@@ -98,6 +115,7 @@ function TankHealth.damage(model: Model, amount: number, attacker: Combatant.Com
 	end
 	local dealt = math.min(amount, state.health)
 	state.health -= dealt
+	state.engaged = true
 	if attacker then
 		state.lastAttacker = attacker
 		state.lastAttackedAt = now()

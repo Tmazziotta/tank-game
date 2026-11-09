@@ -10,6 +10,8 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local MouseLock = require(script.Parent.MouseLock)
+local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
 
 local TankCamera = {}
 
@@ -46,8 +48,10 @@ local function cameraParams(tankModel: Instance): RaycastParams
 	return params
 end
 
-function TankCamera.bind(hull: BasePart)
+function TankCamera.bind(tank: TankDrive.Refs)
 	TankCamera.unbind()
+	local hull = tank.hull
+	local spec = tank.spec
 	local camera = workspace.CurrentCamera
 	camera.CameraType = Enum.CameraType.Scriptable
 	camera.FieldOfView = Config.Camera.FieldOfView
@@ -63,23 +67,28 @@ function TankCamera.bind(hull: BasePart)
 		end
 		local cfg = Config.Camera
 
-		-- Mouse look. Re-assert the lock every frame: menus and focus changes can release it.
-		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		local delta = UserInputService:GetMouseDelta()
-		yaw -= delta.X * cfg.MouseSensitivity
-		pitch = math.clamp(pitch - delta.Y * cfg.MouseSensitivity, cfg.MinPitch, cfg.MaxPitch)
+		-- Mouse look. Re-assert the lock every frame (focus changes can release it), unless a
+		-- menu has the cursor.
+		MouseLock.apply(true)
+		if not MouseLock.isReleased() then
+			local delta = UserInputService:GetMouseDelta()
+			yaw -= delta.X * cfg.MouseSensitivity
+			pitch = math.clamp(pitch - delta.Y * cfg.MouseSensitivity, cfg.MinPitch, cfg.MaxPitch)
+		end
 
 		-- Pull back with speed so you can see further ahead when moving fast.
 		local velocity = hull.AssemblyLinearVelocity
 		local planarSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
-		local speedFraction = math.clamp(planarSpeed / Config.Tank.MaxForwardSpeed, 0, 1)
+		local speedFraction = math.clamp(planarSpeed / spec.MaxForwardSpeed, 0, 1)
 		local alpha = 1 - math.exp(-cfg.Smoothing * dt)
-		local targetDistance = cfg.Distance + cfg.SpeedPullback * speedFraction
+		-- Pull back partly with tank size: a Heavy still looks big on screen, a Light small.
+		local sizeFactor = 1 + (spec.Scale - 1) * cfg.SizeFollow
+		local targetDistance = cfg.Distance * sizeFactor + cfg.SpeedPullback * speedFraction
 		local distance = if smoothedDistance then smoothedDistance + (targetDistance - smoothedDistance) * alpha else targetDistance
 		smoothedDistance = distance
 
 		-- Rotation follows the mouse instantly; only the position is smoothed.
-		local targetFocus = hull.Position + Vector3.yAxis * cfg.FocusHeight
+		local targetFocus = hull.Position + Vector3.yAxis * cfg.FocusHeight * sizeFactor
 		local focus = if smoothedFocus then smoothedFocus:Lerp(targetFocus, alpha) else targetFocus
 		smoothedFocus = focus
 
@@ -99,7 +108,7 @@ function TankCamera.unbind()
 	if bound then
 		RunService:UnbindFromRenderStep(BIND_NAME)
 		bound = false
-		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		MouseLock.apply(false)
 		workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 	end
 end

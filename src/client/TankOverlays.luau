@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local TankClass = require(ReplicatedStorage.Shared.TankClass)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
 local TankOverlays = {}
@@ -52,7 +53,7 @@ local function makeBillboard(model: Model, hull: BasePart): (BillboardGui, Frame
 	name.TextSize = 16
 	name.TextColor3 = Color3.new(1, 1, 1)
 	name.TextStrokeTransparency = 0.4
-	name.Text = displayName(model)
+	name.Text = `{displayName(model)} - {TankClass.ofModel(model).DisplayName}`
 	name.Parent = billboard
 
 	local back = Instance.new("Frame")
