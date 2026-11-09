@@ -3,6 +3,7 @@
 Roblox tank arena game with destructible maps. Rojo project: `src/` syncs into Studio via `rojo serve`.
 
 ## Rules
+- Read DESIGN.md before starting any milestone; flag anything that conflicts with it.
 - All game logic lives in `src/` as `.luau` files. Never write scripts directly in Studio.
 - Server-authoritative: the server decides damage, hits, and destruction. Never trust the client.
 - Use `--!strict` and typed Luau. Small modules with single responsibilities.
