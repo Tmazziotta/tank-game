@@ -217,6 +217,22 @@ local Config = {
 		StoreName = "PlayerData_v1", -- bump the suffix to start everyone fresh
 	},
 
+	Maps = {
+		Rotation = { "Town", "Dockyard", "Orchard" }, -- one map per round, in this order
+		BoundaryHeight = 14, -- indestructible arena walls
+		BoundaryThickness = 4,
+		CoverColor = Color3.fromRGB(95, 105, 140), -- default hard-cover color
+	},
+
+	Props = {
+		CrateSize = 4.5,
+		FenceSegment = 8, -- studs per fence piece (each breaks separately)
+		CrushInterval = 0.1, -- seconds between tank-vs-prop overlap checks
+		CrushMinPush = 12, -- studs/s a crushed prop is thrown at, at minimum
+		CrushPushFactor = 1.2, -- x tank speed
+		Density = 0.3, -- debris density, so tanks shove broken props aside
+	},
+
 	Combat = {
 		FrontArc = math.rad(45), -- plate normal within this of the facing = front (same for rear)
 		-- Impact angle is measured from the plate's surface normal (0 = square-on).
@@ -262,7 +278,6 @@ local Config = {
 		StuckSpin = 0.15, -- ...if also turning slower than this (rad/s)
 		StuckTime = 1.2,
 		UnstickTime = 1.0, -- reverse-and-turn duration when stuck
-		WanderRadius = 90, -- around the arena center, when there is no one to fight
 	},
 
 	Round = {

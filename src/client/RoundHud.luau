@@ -133,16 +133,18 @@ local function update()
 		onPhaseChanged(current)
 	end
 	local left = secondsLeft()
+	local mapName = ReplicatedStorage:GetAttribute(RoundSchema.MapAttribute)
+	local mapSuffix = if type(mapName) == "string" and mapName ~= "" then ` - {string.upper(mapName)}` else ""
 	if current == "Waiting" then
 		timer.Text = ""
 		status.Text = `WAITING FOR PLAYERS ({#Players:GetPlayers()}/{Config.Round.MinPlayers}) - WARM UP!`
 	elseif current == "Intermission" then
 		timer.Text = ""
-		status.Text = `ROUND STARTS IN {math.ceil(left)}`
+		status.Text = `ROUND STARTS IN {math.ceil(left)}{mapSuffix}`
 	elseif current == "Active" then
 		timer.Text = formatTime(left)
 		timer.TextColor3 = if left <= 30 then RED else WHITE
-		status.Text = "FREE-FOR-ALL - MOST KILLS WINS"
+		status.Text = `FREE-FOR-ALL{mapSuffix} - MOST KILLS WINS`
 	else
 		timer.Text = ""
 		status.Text = `NEXT ROUND IN {math.ceil(left)}`

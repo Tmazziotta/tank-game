@@ -9,7 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
-local MapLayout = require(script.Parent.MapLayout)
+local MapService = require(script.Parent.MapService)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
 local PlayerData = require(script.Parent.PlayerData)
@@ -55,9 +55,10 @@ end
 
 -- The spawn point farthest from every live tank, so nobody respawns in someone's sights.
 local function chooseSpawn(): CFrame
-	local best = MapLayout.SpawnPoints[rng:NextInteger(1, #MapLayout.SpawnPoints)]
+	local spawnPoints = MapService.current().spawns
+	local best = spawnPoints[rng:NextInteger(1, #spawnPoints)]
 	local bestDistance = -math.huge
-	for _, spawnPoint in MapLayout.SpawnPoints do
+	for _, spawnPoint in spawnPoints do
 		local nearest = math.huge
 		for _, record in records do
 			if record.tank.hull.Parent then

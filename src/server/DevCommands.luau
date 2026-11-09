@@ -10,6 +10,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local BotService = require(script.Parent.BotService)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
+local MapService = require(script.Parent.MapService)
 local PlayerData = require(script.Parent.PlayerData)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
@@ -48,6 +49,16 @@ local commands: { [string]: (...any) -> any } = {
 		assert(player and player:IsA("Player"), `no player {playerName}`)
 		PlayerData.reset(player)
 		return PlayerData.get(player)
+	end,
+	-- loadMap(id): switch arena now ("Town", "Dockyard", "Orchard") and respawn everyone.
+	loadMap = function(id: string)
+		assert(MapService.load(id), `unknown map {id}`)
+		TankService.clearWrecks()
+		for _, player in Players:GetPlayers() do
+			task.spawn(player.LoadCharacter, player)
+		end
+		BotService.respawnAll()
+		return nil
 	end,
 	-- setRound(key, value): tweak a Config.Round value live, e.g. ("MinPlayers", 1).
 	setRound = function(key: string, value: number)

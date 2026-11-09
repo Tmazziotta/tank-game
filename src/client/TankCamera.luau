@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local MapSchema = require(ReplicatedStorage.Shared.MapSchema)
 local MouseLock = require(script.Parent.MouseLock)
 local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
 
@@ -29,7 +30,8 @@ local function flatYaw(cf: CFrame): number
 	return math.atan2(-look.X, -look.Z)
 end
 
--- Raycast params ignoring the tank, the local character and client-only effects.
+-- Raycast params ignoring the tank, the local character, client-only effects and
+-- crushable props (they're see-through for the camera; you drive through them anyway).
 local function cameraParams(tankModel: Instance): RaycastParams
 	local ignore: { Instance } = { tankModel }
 	local character = Players.LocalPlayer.Character
@@ -41,6 +43,11 @@ local function cameraParams(tankModel: Instance): RaycastParams
 		if folder then
 			table.insert(ignore, folder)
 		end
+	end
+	local map = workspace:FindFirstChild(MapSchema.MapFolder)
+	local props = map and map:FindFirstChild(MapSchema.PropsFolder)
+	if props then
+		table.insert(ignore, props)
 	end
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude

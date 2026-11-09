@@ -18,6 +18,7 @@ export type BuildingSpec = {
 	doorWidth: number, -- chunks, centered in the front (-Z) wall; 0 for none
 	doorHeight: number, -- chunk rows
 	windows: boolean,
+	wallOnly: boolean?, -- just one free-standing wall `width` chunks long (no sides, no roof)
 }
 
 type ChunkDef = {
@@ -67,6 +68,15 @@ local function layout(spec: BuildingSpec, rng: Random): { ChunkDef }
 
 	local function add(position: Vector3, size: Vector3, color: Color3)
 		table.insert(chunks, { position = position, size = size, color = varied(color, rng) })
+	end
+
+	if spec.wallOnly then
+		for row = 0, spec.floors - 1 do
+			for column = 0, spec.width - 1 do
+				add(Vector3.new(-outerW / 2 + s * (column + 0.5), base + s * (row + 0.5), 0), Vector3.new(s, s, t), spec.color)
+			end
+		end
+		return chunks
 	end
 
 	for row = 0, spec.floors - 1 do
@@ -150,7 +160,8 @@ function BuildingGenerator.build(spec: BuildingSpec, origin: CFrame, seed: numbe
 	local foundation = Instance.new("Part")
 	foundation.Name = "Foundation"
 	foundation.Anchored = true
-	foundation.Size = Vector3.new(spec.width * s + 2, FOUNDATION_HEIGHT, spec.depth * s + 2)
+	local footprintDepth = if spec.wallOnly then Config.Destruction.WallThickness else spec.depth * s
+	foundation.Size = Vector3.new(spec.width * s + 2, FOUNDATION_HEIGHT, footprintDepth + 2)
 	foundation.CFrame = origin * CFrame.new(0, FOUNDATION_HEIGHT / 2, 0)
 	foundation.Color = Color3.fromRGB(200, 200, 210)
 	foundation.Material = Enum.Material.SmoothPlastic

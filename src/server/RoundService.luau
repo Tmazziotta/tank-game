@@ -66,7 +66,18 @@ local function endRound()
 	TankHealth.setEnabled(true)
 end
 
+-- Load the next map in the rotation and put everyone on it.
+local function nextMap()
+	TankService.clearWrecks()
+	MapService.advance()
+	for _, player in Players:GetPlayers() do
+		task.spawn(player.LoadCharacter, player)
+	end
+	BotService.respawnAll()
+end
+
 local function loop()
+	local first = true
 	while true do
 		if not enoughPlayers() then
 			setPhase("Waiting")
@@ -75,6 +86,11 @@ local function loop()
 			until enoughPlayers()
 		end
 
+		-- The first round plays the map built at startup; after that, rotate.
+		if not first then
+			nextMap()
+		end
+		first = false
 		setPhase("Intermission", Config.Round.Intermission)
 		if countdown(Config.Round.Intermission, function()
 			return not enoughPlayers()

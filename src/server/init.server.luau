@@ -13,6 +13,7 @@ local DevCommands = require(script.DevCommands)
 local Garage = require(script.Garage)
 local MapService = require(script.MapService)
 local PlayerData = require(script.PlayerData)
+local PropCrusher = require(script.PropCrusher)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Rewards = require(script.Rewards)
 local RoundService = require(script.RoundService)
@@ -27,6 +28,7 @@ local function blast(position: Vector3, radius: number)
 		table.insert(roots, buildings)
 	end
 	Destruction.blast(position, radius, roots)
+	PropCrusher.blast(position, radius)
 end
 
 MapService.RoundReset()
@@ -35,6 +37,7 @@ PlayerData.start()
 Rewards.start()
 Garage.start()
 TankService.start()
+PropCrusher.start()
 DevCommands.start()
 
 WeaponService.start(function(position: Vector3, radius: number, _shooter: Combatant.Combatant)

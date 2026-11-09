@@ -12,7 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BuildingGenerator = require(script.Parent.BuildingGenerator)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
-local MapLayout = require(script.Parent.MapLayout)
+local MapService = require(script.Parent.MapService)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
 local TankHealth = require(script.Parent.TankHealth)
@@ -62,9 +62,14 @@ local function scatter(rng: Random): Vector3
 	return Vector3.new(rng:NextNumber(-r, r), rng:NextNumber(-r, r) * 0.5, rng:NextNumber(-r, r))
 end
 
--- Raycast params that ignore this bot's own tank and everyone's character bodies.
+-- Raycast params that ignore this bot's own tank, everyone's character bodies, and
+-- crushable props (bots plow through those, and shoot through them).
 local function queryParams(brain: Brain): RaycastParams
 	local exclude: { Instance } = { brain.tank.model }
+	local props = MapService.getPropsFolder()
+	if props then
+		table.insert(exclude, props)
+	end
 	for _, player in Players:GetPlayers() do
 		if player.Character then
 			table.insert(exclude, player.Character)
@@ -148,8 +153,9 @@ local function chooseMove(brain: Brain, now: number): (Vector3, number)
 	local waypoint = brain.waypoint
 	if not waypoint or flat(waypoint - hull.Position).Magnitude < 10 then
 		local angle = brain.rng:NextNumber(0, 2 * math.pi)
-		local radius = brain.rng:NextNumber(0, cfg.WanderRadius)
-		waypoint = MapLayout.Center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius
+		local map = MapService.current()
+		local radius = brain.rng:NextNumber(0, map.wanderRadius)
+		waypoint = map.center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius
 		brain.waypoint = waypoint
 	end
 	local toWaypoint = flat((waypoint :: Vector3) - hull.Position)

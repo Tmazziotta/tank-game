@@ -8,4 +8,5 @@ return {
 	EndsAtAttribute = "RoundEndsAt", -- workspace:GetServerTimeNow() timestamp; 0 = no timer
 	WinnerAttribute = "RoundWinner", -- winner's DisplayName, "" for a draw
 	WinnerKillsAttribute = "RoundWinnerKills",
+	MapAttribute = "MapName", -- display name of the current arena
 }
