@@ -10,6 +10,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local BotService = require(script.Parent.BotService)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
+local PlayerData = require(script.Parent.PlayerData)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
 
@@ -30,6 +31,16 @@ local commands: { [string]: (...any) -> any } = {
 	setBots = function(count: number)
 		BotService.setCount(count)
 		return BotService.count()
+	end,
+	-- grant(playerName, coins, xp): add currency/XP to a player's save. Returns their data.
+	grant = function(playerName: string, coins: number, xp: number)
+		local player = Players:FindFirstChild(playerName)
+		assert(player and player:IsA("Player"), `no player {playerName}`)
+		PlayerData.update(player, function(data)
+			data.Coins += coins
+			data.XP += xp
+		end)
+		return PlayerData.get(player)
 	end,
 	-- setRound(key, value): tweak a Config.Round value live, e.g. ("MinPlayers", 1).
 	setRound = function(key: string, value: number)

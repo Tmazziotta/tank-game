@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Strict type-check all game code with luau-lsp against Roblox API definitions.
+# Strict type-check all game code (third-party code in vendor/ is not reported) with luau-lsp against Roblox API definitions.
 # Usage: scripts/typecheck.sh            (set REFRESH_TYPES=1 to re-download definitions)
 set -euo pipefail
 
@@ -22,4 +22,5 @@ luau-lsp analyze \
 	--sourcemap=sourcemap.json \
 	--base-luaurc=.luaurc \
 	--no-strict-dm-types \
+	--ignore="vendor/**" \
 	src

@@ -17,7 +17,16 @@
         "TankDestroyed": {
           "$className": "RemoteEvent"
         },
-        "SelectClass": {
+        "GarageRequest": {
+          "$className": "RemoteFunction"
+        },
+        "ProfileSync": {
+          "$className": "RemoteEvent"
+        },
+        "ProfileRequest": {
+          "$className": "RemoteEvent"
+        },
+        "Reward": {
           "$className": "RemoteEvent"
         }
       }
@@ -25,6 +34,12 @@
     "ServerScriptService": {
       "Server": {
         "$path": "src/server"
+      },
+      "Vendor": {
+        "$className": "Folder",
+        "ProfileStore": {
+          "$path": "vendor/ProfileStore.luau"
+        }
       }
     },
     "StarterPlayer": {

@@ -57,7 +57,7 @@ Each class gets 2–3 tanks with upgrade tiers (gun, armor, engine).
 |---|---|---|
 | M1 ✅ | Drivable tank, shooting, destructible buildings | Shooting a wall feels good |
 | M2 ✅ | Combat: HP, armor angling, death/respawn, FFA round loop | 2-player test has real fights |
-| M3 | Tank roster: 3 classes, class select at spawn | Each class feels distinct |
+| M3 ✅ | Tank roster: 3 classes, class select at spawn | Each class feels distinct |
 | M4 | Progression: coins, XP, unlocks, upgrades, ProfileStore saves | Progress survives rejoin |
 | M5 | Maps: 2–3 arenas with crush props and hard-cover skeletons | Each map plays differently |
 | M6 | Polish: UI/HUD, audio, VFX, mobile controls, performance pass | Feels good on phone and PC |

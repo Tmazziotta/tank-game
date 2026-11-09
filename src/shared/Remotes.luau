@@ -10,8 +10,15 @@ return {
 	FireRequest = folder:WaitForChild("FireRequest") :: RemoteEvent,
 	-- server -> all clients: (shooter: Player? (nil for bots), report: CombatTypes.ShotReport)
 	ShotFired = folder:WaitForChild("ShotFired") :: RemoteEvent,
-	-- client -> server: (className: string) — validated against Config.Classes
-	SelectClass = folder:WaitForChild("SelectClass") :: RemoteEvent,
+	-- client -> server: (action: "Buy" | "Upgrade" | "Select", tankId: string, track: string?)
+	-- returns (ok: boolean, message: string?). Validated against saved data and Config.
+	GarageRequest = folder:WaitForChild("GarageRequest") :: RemoteFunction,
+	-- server -> one client: (data: PlayerDataTypes.Data) whenever their saved data changes
+	ProfileSync = folder:WaitForChild("ProfileSync") :: RemoteEvent,
+	-- client -> server: no arguments; asks for a ProfileSync (sent once the client listens)
+	ProfileRequest = folder:WaitForChild("ProfileRequest") :: RemoteEvent,
+	-- server -> one client: ({reason: string, coins: number, xp: number, levelUp: number?})
+	Reward = folder:WaitForChild("Reward") :: RemoteEvent,
 	-- server -> all clients: (report: CombatTypes.DestroyedReport)
 	TankDestroyed = folder:WaitForChild("TankDestroyed") :: RemoteEvent,
 }

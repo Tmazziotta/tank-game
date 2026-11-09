@@ -12,7 +12,9 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local MapLayout = require(script.Parent.MapLayout)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
-local TankClass = require(ReplicatedStorage.Shared.TankClass)
+local PlayerData = require(script.Parent.PlayerData)
+local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
+local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
 -- position is nil if the hull fell out of the world.
@@ -184,12 +186,13 @@ end
 local function buildTank(
 	spawnCFrame: CFrame,
 	color: Color3,
-	className: string,
+	tankId: string,
+	upgrades: PlayerDataTypes.UpgradeLevels?,
 	name: string,
 	combatant: Combatant.Combatant,
 	owner: Player?
 ): TankBuilder.Tank
-	local tank = TankBuilder.build(spawnCFrame, color, className)
+	local tank = TankBuilder.build(spawnCFrame, color, tankId, upgrades)
 	tank.model.Name = name
 	if owner then
 		tank.model:SetAttribute(TankSchema.OwnerAttribute, owner.UserId)
@@ -204,6 +207,11 @@ end
 
 local function spawnTank(player: Player, character: Model)
 	despawn(player)
+	-- The tank (and its upgrades) come from saved data, so wait for it to load.
+	local data = PlayerData.waitFor(player)
+	if not data or player.Character ~= character then
+		return
+	end
 
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	character:WaitForChild("HumanoidRootPart")
@@ -211,8 +219,9 @@ local function spawnTank(player: Player, character: Model)
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = 0
 
-	local className = TankClass.normalize(player:GetAttribute(TankClass.Attribute))
-	local tank = buildTank(chooseSpawn(), colorFor(player), className, "Tank_" .. player.Name, Combatant.forPlayer(player), player)
+	local tankId = TankCatalog.normalize(data.SelectedTank)
+	local upgrades = PlayerData.upgradesFor(data, tankId)
+	local tank = buildTank(chooseSpawn(), colorFor(player), tankId, upgrades, "Tank_" .. player.Name, Combatant.forPlayer(player), player)
 	tanks[player] = tank
 
 	if not seatDriver(tank, humanoid) then
@@ -287,8 +296,8 @@ function TankService.liveTanks(): { { tank: TankBuilder.Tank, combatant: Combata
 end
 
 -- An AI-driven tank at the best spawn point. The server simulates it (no network owner).
-function TankService.spawnBot(combatant: Combatant.Combatant, color: Color3, className: string): TankBuilder.Tank
-	local tank = buildTank(chooseSpawn(), color, TankClass.normalize(className), combatant.name, combatant, nil)
+function TankService.spawnBot(combatant: Combatant.Combatant, color: Color3, tankId: string): TankBuilder.Tank
+	local tank = buildTank(chooseSpawn(), color, TankCatalog.normalize(tankId), nil, combatant.name, combatant, nil)
 	giveOwnership(tank, nil)
 	return tank
 end
@@ -305,7 +314,7 @@ end
 
 -- Studio testing: an ownerless, undriven tank to shoot at.
 function TankService.spawnDummy(spawnCFrame: CFrame): Model
-	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), Config.DefaultClass, "Dummy", Combatant.bot("Dummy"), nil)
+	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), Config.DefaultTank, nil, "Dummy", Combatant.bot("Dummy"), nil)
 	giveOwnership(tank, nil)
 	TankHealth.endProtection(tank.model)
 	return tank.model

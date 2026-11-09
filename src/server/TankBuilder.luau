@@ -8,6 +8,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
+local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankClass = require(ReplicatedStorage.Shared.TankClass)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
@@ -23,8 +25,8 @@ export type Tank = {
 	hinge: HingeConstraint,
 	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
-	className: string,
-	spec: TankClass.Spec,
+	tankId: string, -- Config.Tanks key
+	spec: TankClass.Spec, -- effective stats: class x tank mods x upgrades
 }
 
 local TankBuilder = {}
@@ -119,15 +121,38 @@ local function addTrim(
 	end
 end
 
+-- Tier marks: one white chevron stripe per tier across the front of the fender.
+local function addTierStripes(
+	model: Model,
+	tier: number,
+	fender: BasePart,
+	at: (number, number, number) -> CFrame,
+	size: (number, number, number) -> Vector3
+)
+	for i = 1, tier do
+		local stripe = makePart(model, "TierStripe", Enum.PartType.Block, size(3.2, 0.1, 0.45), at(0, 3.75, -5.0 + (i - 1) * 0.8), Color3.new(1, 1, 1))
+		stripe.Material = Enum.Material.Neon
+		decor(stripe)
+		weld(fender, stripe)
+	end
+end
+
 -- Cylinders extend along their local X axis; these rotations aim that axis.
 local ALONG_Z = CFrame.Angles(0, math.rad(90), 0) -- X axis -> forward (-Z)
 local ALONG_Y = CFrame.Angles(0, 0, math.rad(90)) -- X axis -> up
 
-function TankBuilder.build(origin: CFrame, bodyColor: Color3, className: string): Tank
-	local spec = TankClass.get(className)
+function TankBuilder.build(origin: CFrame, bodyColor: Color3, tankId: string, upgrades: PlayerDataTypes.UpgradeLevels?): Tank
+	local def = TankCatalog.get(tankId)
+	local spec = TankCatalog.spec(tankId, upgrades)
 	local model = Instance.new("Model")
 	model.Name = "Tank"
-	model:SetAttribute(TankClass.Attribute, className)
+	-- Clients rebuild the same spec from these (TankCatalog.ofModel).
+	model:SetAttribute(TankCatalog.IdAttribute, tankId)
+	model:SetAttribute(TankClass.Attribute, def.Class)
+	local levels = upgrades or TankCatalog.noUpgrades()
+	for track, attribute in TankCatalog.UpgradeAttributes do
+		model:SetAttribute(attribute, (levels :: any)[track] or 0)
+	end
 
 	-- Everything below is laid out at Medium size; k scales positions and sizes.
 	local k = spec.Scale
@@ -150,6 +175,7 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3, className: string)
 	local fender = makePart(model, "Fender", Enum.PartType.Block, size(9.8, 0.6, 11.6), at(0, 3.4, 0), bodyColor)
 	fender.CustomPhysicalProperties = contactPhysics()
 	weld(hull, fender)
+	addTierStripes(model, def.Tier, fender, at, size)
 
 	for _, side in { -1, 1 } do
 		local x = 3.4 * side
@@ -315,7 +341,7 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3, className: string)
 	model.PrimaryPart = hull
 
 	local tank: Tank = {
-		className = className,
+		tankId = tankId,
 		spec = spec,
 		model = model,
 		hull = hull,

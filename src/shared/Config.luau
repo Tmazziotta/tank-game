@@ -126,6 +126,97 @@ local Config = {
 		},
 	},
 
+	-- The tanks players can own. Tier I of each class is the free starter; higher tiers
+	-- need a level and coins. Stats = class base (Classes) x Mods x upgrades. Mods keys:
+	-- Health, Damage, Reload (cooldown multiplier, <1 = faster), Speed, Turret, Armor
+	-- (damage-taken multiplier on every plate, <1 = tougher).
+	TankOrder = { "Pip", "Zipper", "Comet", "Biscuit", "Badger", "Ranger", "Boulder", "Rhino", "Fortress" },
+	DefaultTank = "Biscuit",
+	Tanks = {
+		Pip = { Class = "Light", Tier = 1, DisplayName = "Pip", Cost = 0, Mods = {} },
+		Zipper = {
+			Class = "Light",
+			Tier = 2,
+			DisplayName = "Zipper",
+			Cost = 1500,
+			Mods = { Health = 1.1, Damage = 1.1, Speed = 1.08 }, -- even faster
+		},
+		Comet = {
+			Class = "Light",
+			Tier = 3,
+			DisplayName = "Comet",
+			Cost = 4000,
+			Mods = { Health = 1.2, Damage = 1.2, Speed = 1.1, Reload = 0.88 }, -- rapid fire
+		},
+		Biscuit = { Class = "Medium", Tier = 1, DisplayName = "Biscuit", Cost = 0, Mods = {} },
+		Badger = {
+			Class = "Medium",
+			Tier = 2,
+			DisplayName = "Badger",
+			Cost = 1500,
+			Mods = { Health = 1.12, Damage = 1.1, Turret = 1.2 }, -- quick turret
+		},
+		Ranger = {
+			Class = "Medium",
+			Tier = 3,
+			DisplayName = "Ranger",
+			Cost = 4000,
+			Mods = { Health = 1.22, Damage = 1.22, Reload = 0.92, Turret = 1.15 },
+		},
+		Boulder = { Class = "Heavy", Tier = 1, DisplayName = "Boulder", Cost = 0, Mods = {} },
+		Rhino = {
+			Class = "Heavy",
+			Tier = 2,
+			DisplayName = "Rhino",
+			Cost = 1500,
+			Mods = { Health = 1.12, Damage = 1.15, Speed = 1.05 }, -- hits harder
+		},
+		Fortress = {
+			Class = "Heavy",
+			Tier = 3,
+			DisplayName = "Fortress",
+			Cost = 4000,
+			Mods = { Health = 1.25, Damage = 1.2, Armor = 0.9 }, -- tougher plates all round
+		},
+	},
+
+	Progression = {
+		-- XP needed to reach level n = XPPerLevelStep * n * (n - 1) / 2  (L2 = 200, L4 = 1200, L8 = 5600)
+		XPPerLevelStep = 200,
+		MaxLevel = 30,
+		TierLevel = { 1, 4, 8 }, -- level needed to buy a tank of tier 1 / 2 / 3
+	},
+
+	-- Per-tank upgrades: each track has MaxLevel levels; each level applies its PerLevel
+	-- multipliers again (compounding). Cost of level n = Costs[n] x TierCostFactor[tier].
+	Upgrades = {
+		TrackOrder = { "Gun", "Armor", "Engine" },
+		MaxLevel = 3,
+		Costs = { 200, 400, 800 },
+		TierCostFactor = { 1, 1.5, 2.25 },
+		Tracks = {
+			Gun = { DisplayName = "Gun", PerLevel = { Damage = 1.05, Reload = 0.97 } },
+			Armor = { DisplayName = "Armor", PerLevel = { Health = 1.06 } },
+			Engine = { DisplayName = "Engine", PerLevel = { Speed = 1.04 } },
+		},
+	},
+
+	Economy = {
+		KillCoins = 25,
+		KillXP = 50,
+		WinCoins = 100,
+		WinXP = 150,
+		RoundCoins = 20, -- everyone present when a round ends
+		RoundXP = 50,
+		PlaytimeInterval = 60, -- seconds alive in an active round per playtime reward
+		PlaytimeCoins = 5,
+		PlaytimeXP = 10,
+	},
+
+	Data = {
+		StoreName = "PlayerData_v1", -- bump the suffix to start everyone fresh
+	},
+
 	Combat = {
 		FrontArc = math.rad(45), -- plate normal within this of the facing = front (same for rear)
 		-- Impact angle is measured from the plate's surface normal (0 = square-on).
@@ -133,7 +224,7 @@ local Config = {
 		RicochetAngle = math.rad(70), -- at or past this the shell bounces off: no damage
 		GrazeMultiplier = 0.5, -- damage multiplier just short of the ricochet angle
 		SpawnProtection = 3, -- seconds; firing ends it early
-		ClassSwitchCooldown = 1, -- seconds between class changes that respawn you
+		TankSwitchCooldown = 1, -- seconds between tank changes that respawn you
 		KillCreditWindow = 15, -- a death this soon after being hit credits the attacker
 		WreckBlastRadius = 9, -- a dying tank blows chunks out of nearby walls
 	},

@@ -10,7 +10,7 @@ local RunService = game:GetService("RunService")
 local BotBrain = require(script.Parent.BotBrain)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
-local TankClass = require(ReplicatedStorage.Shared.TankClass)
+local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankService = require(script.Parent.TankService)
 
@@ -30,9 +30,9 @@ local function spawnBot(bot: Bot)
 	if not bot.active or bot.tank then
 		return
 	end
-	-- A random class each life, so solo testing meets every class.
-	local className = TankClass.order[rng:NextInteger(1, #TankClass.order)]
-	local tank = TankService.spawnBot(bot.combatant, Config.Bots.Color, className)
+	-- A random tank each life, so solo testing meets every class and tier.
+	local tankId = TankCatalog.order[rng:NextInteger(1, #TankCatalog.order)]
+	local tank = TankService.spawnBot(bot.combatant, Config.Bots.Color, tankId)
 	bot.tank = tank
 	bot.brain = BotBrain.new(tank, bot.combatant)
 end

@@ -1,14 +1,18 @@
 --!strict
 -- Client bootstrap.
 
-local ClassPicker = require(script.ClassPicker)
+local GarageMenu = require(script.GarageMenu)
+local ProfileClient = require(script.ProfileClient)
+local ProgressHud = require(script.ProgressHud)
 local RoundHud = require(script.RoundHud)
 local TankController = require(script.TankController)
 local TankOverlays = require(script.TankOverlays)
 local WeaponClient = require(script.WeaponClient)
 
+ProfileClient.start()
 TankController.start()
 WeaponClient.start()
 RoundHud.start()
-task.spawn(ClassPicker.start)
+task.spawn(ProgressHud.start)
+task.spawn(GarageMenu.start)
 task.spawn(TankOverlays.start)

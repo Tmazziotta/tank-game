@@ -4,6 +4,7 @@
 -- Whoever simulates a tank's physics calls these every frame.
 
 local Config = require(script.Parent.Config)
+local TankCatalog = require(script.Parent.TankCatalog)
 local TankClass = require(script.Parent.TankClass)
 local TankSchema = require(script.Parent.TankSchema)
 
@@ -59,7 +60,7 @@ function TankDrive.resolve(model: Model): Refs?
 		hinge = hinge,
 		barrelHinge = barrelHinge,
 		muzzle = muzzle,
-		spec = TankClass.ofModel(model),
+		spec = TankCatalog.ofModel(model),
 	}
 end
 

@@ -4,15 +4,17 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BotService = require(script.BotService)
-local ClassSelection = require(script.ClassSelection)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Combatant = require(script.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local DebrisService = require(script.DebrisService)
 local Destruction = require(script.Destruction)
 local DevCommands = require(script.DevCommands)
+local Garage = require(script.Garage)
 local MapService = require(script.MapService)
+local PlayerData = require(script.PlayerData)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Rewards = require(script.Rewards)
 local RoundService = require(script.RoundService)
 local ScoreService = require(script.ScoreService)
 local TankService = require(script.TankService)
@@ -29,7 +31,9 @@ end
 
 MapService.RoundReset()
 ScoreService.start()
-ClassSelection.start()
+PlayerData.start()
+Rewards.start()
+Garage.start()
 TankService.start()
 DevCommands.start()
 
@@ -39,6 +43,7 @@ end)
 
 TankService.onDestroyed(function(victim: Combatant.Combatant, killer: Combatant.Combatant?, position: Vector3?)
 	ScoreService.recordDeath(victim, killer)
+	Rewards.onDestroyed(victim.player, if killer then killer.player else nil)
 	if position then
 		blast(position, Config.Combat.WreckBlastRadius)
 	end
