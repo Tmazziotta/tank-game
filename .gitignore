@@ -9,3 +9,7 @@ sourcemap.json
 
 # luau-lsp type definitions cache
 /.luau-cache
+
+# Vim swap files
+*.swp
+*.swo
