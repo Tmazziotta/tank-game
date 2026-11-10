@@ -2,7 +2,7 @@
 -- Payloads the server broadcasts about combat. Clients only draw these.
 
 -- Miss: hit nothing. World: hit map/debris. Hit: damaged a tank. Ricochet: bounced off a
--- tank's armor. Shielded: struck a spawn-protected tank.
+-- tank's armor. Shielded: struck a spawn-protected tank or a teammate (no friendly fire).
 export type ShotKind = "Miss" | "World" | "Hit" | "Ricochet" | "Shielded"
 
 export type ShotReport = {
@@ -21,6 +21,8 @@ export type DestroyedReport = {
 	victim: Player?, -- nil for bots
 	killerName: string?, -- nil if nobody gets credit
 	killer: Player?, -- nil for bots
+	victimTeam: string?,
+	killerTeam: string?,
 	position: Vector3?,
 }
 

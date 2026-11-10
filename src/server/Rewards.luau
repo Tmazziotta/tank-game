@@ -1,6 +1,6 @@
 --!strict
--- Coins and XP: for kills, for winning a round, for finishing a round, and a trickle for
--- time played. Kill and round rewards only pay out during an active round. Each payout
+-- Coins and XP: for kills, for winning a round, for finishing and winning a match, and a
+-- trickle for time played. Kill rewards only pay out during an active round. Each payout
 -- also tells the client (Remotes.Reward) so it can pop up "+25 coins".
 
 local Players = game:GetService("Players")
@@ -11,6 +11,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
+local TeamService = require(script.Parent.TeamService)
 
 local Rewards = {}
 
@@ -56,14 +57,25 @@ function Rewards.onDestroyed(victim: Player?, killer: Player?)
 	end
 end
 
--- Round over: everyone still here gets the participation reward; the winner gets more.
-function Rewards.onRoundEnded(winner: Player?)
+-- Each player on the team that won a round.
+function Rewards.onRoundWon(team: string)
+	local e = Config.Economy
+	for _, player in TeamService.players(team) do
+		Rewards.grant(player, e.RoundWinCoins, e.RoundWinXP, "Round won")
+	end
+end
+
+-- Match over: everyone present gets the participation reward; the winners get more.
+-- `winner` is nil for a drawn match. Stats: Rounds counts matches played, Wins matches won.
+function Rewards.onMatchEnded(winner: string?)
 	local e = Config.Economy
 	for _, player in Players:GetPlayers() do
-		Rewards.grant(player, e.RoundCoins, e.RoundXP, "Round complete", "Rounds")
+		Rewards.grant(player, e.MatchCoins, e.MatchXP, "Match complete", "Rounds")
 	end
-	if winner and winner.Parent == Players then
-		Rewards.grant(winner, e.WinCoins, e.WinXP, "Round won", "Wins")
+	if winner then
+		for _, player in TeamService.players(winner) do
+			Rewards.grant(player, e.MatchWinCoins, e.MatchWinXP, "Match won", "Wins")
+		end
 	end
 end
 

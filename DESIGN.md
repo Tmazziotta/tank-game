@@ -8,17 +8,19 @@ Short-session tank brawler on Roblox. Chunky toy-style tanks fight in small aren
 ## Pillars
 1. **Destruction is tactics, not decoration.** Breaking a wall should open a sightline or a flank.
 2. **Easy to drive, deep to master.** WASD + mouse in 10 seconds; armor angling and positioning reward skill.
-3. **Rounds are short.** 3 minutes, instant respawns, always back in the action.
+3. **Rounds are short and every life counts.** 3v3 elimination, 2-minute rounds, best of 5. Dying hurts, but the next round is seconds away.
 4. **Fair.** Paid items are sidegrades or cosmetics. Never pay-to-win.
 
 ## Core loop
-Fight → earn coins/XP → unlock or upgrade tanks → fight again.
+Fight a best-of-5 match → earn coins/XP → unlock or upgrade tanks (or counter-pick between rounds) → queue the next match.
 
 ## Game rules
-- **Mode (launch):** Free-for-all, 8 players, 3-minute rounds, most kills wins. Team mode (4v4) comes later.
+- **Mode (launch):** 3v3 team elimination, best of 5 rounds (first to 3; if draws leave no one at 3 after 5 rounds, most round wins takes it, else a draw). 6-player servers; bots fill empty slots. Replaces the original FFA plan.
+- **Round:** pre-round countdown (garage open, tanks frozen), then up to 2:00. A team wins the round by wiping out the other. At the time cap the team with the higher **team health %** wins (remaining HP / max HP summed over the team, dead tanks count 0); an exact tie or a mutual wipe is a draw.
+- **Fairness:** map rebuilt every round; teams swap sides each round; one map per match, rotating between matches. Friendly fire off.
 - **Damage:** Server-authoritative. Front armor > sides > rear. Steep impact angles reduce damage; past ~70° the shell ricochets.
-- **Death:** Explosion, wreck lingers ~5s, respawn after ~5s with ~3s spawn protection.
-- **Map reset:** Full rebuild at the end of each round.
+- **Death:** Explosion, wreck lingers ~5s. No respawn until the next round; you spectate a living teammate.
+- **Map reset:** Full rebuild before each round.
 
 ## Destruction rules
 - **Breakable cover:** Pre-fractured buildings and walls; shells knock out chunks in a blast radius.
@@ -37,7 +39,7 @@ Fight → earn coins/XP → unlock or upgrade tanks → fight again.
 Each class gets 2–3 tanks with upgrade tiers (gun, armor, engine).
 
 ## Progression
-- **Coins** earned from kills, wins, and playtime. Spent on tank unlocks and upgrades.
+- **Coins** earned from kills, round wins, match wins/participation, and playtime. Spent on tank unlocks and upgrades.
 - **XP / level** gates tiers.
 - Data saved with ProfileStore (session locking, autosave).
 
@@ -59,11 +61,12 @@ Each class gets 2–3 tanks with upgrade tiers (gun, armor, engine).
 | M2 ✅ | Combat: HP, armor angling, death/respawn, FFA round loop | 2-player test has real fights |
 | M3 ✅ | Tank roster: 3 classes, class select at spawn | Each class feels distinct |
 | M4 ✅ | Progression: coins, XP, unlocks, upgrades, ProfileStore saves | Progress survives rejoin |
-| M5 | Maps: 2–3 arenas with crush props and hard-cover skeletons | Each map plays differently |
+| M5 | Maps: 2–3 arenas with crush props and hard-cover skeletons, team-side spawns | Each map plays differently |
+| M5b | 3v3 best-of-5 elimination mode (teams, spectate, health tiebreak, bot fill) | A full match with bots plays out start to finish |
 | M6 | Polish: UI/HUD, audio, VFX, mobile controls, performance pass | Feels good on phone and PC |
 | M7 | Monetization, lobby/menus, analytics events | First purchase flow works end to end |
 | M8 | Launch: icon, thumbnails, trailer GIF, maturity questionnaire, publish, friends playtest | Live and playable by the public |
-| Post | Team mode, events, new tanks/maps, retention tuning | Driven by analytics |
+| Post | More modes (e.g. FFA warm-up), events, new tanks/maps, retention tuning | Driven by analytics |
 
 ## Out of scope (for now)
 - Realistic/historical tank models or any branding from existing tank games

@@ -34,7 +34,7 @@ export type MapDef = {
 	groundColor: Color3,
 	boundaryColor: Color3,
 	wanderRadius: number, -- bots roam this far from center when idle
-	spawns: { CFrame },
+	sides: { { CFrame } }, -- two team sides, each with at least Config.Round.TeamSize spawns
 	buildings: { Building }, -- destructible (buildings and free-standing walls)
 	cover: { Cover }, -- indestructible
 	props: { Prop }, -- crushable

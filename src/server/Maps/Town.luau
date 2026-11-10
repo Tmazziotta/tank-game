@@ -27,13 +27,10 @@ local map: MapKit.MapDef = {
 	groundColor = Color3.fromRGB(99, 95, 99),
 	boundaryColor = Color3.fromRGB(120, 125, 150),
 	wanderRadius = 90,
-	spawns = {
-		MapKit.spawn(0, -60, center),
-		MapKit.spawn(-70, -45, center),
-		MapKit.spawn(70, -45, center),
-		MapKit.spawn(0, 128, center),
-		MapKit.spawn(-85, 120, center),
-		MapKit.spawn(85, 75, center),
+	-- Asymmetric map: teams swap sides every round, so both get each side.
+	sides = {
+		{ MapKit.spawn(0, -60, center), MapKit.spawn(-70, -45, center), MapKit.spawn(70, -45, center) },
+		{ MapKit.spawn(0, 128, center), MapKit.spawn(-85, 120, center), MapKit.spawn(85, 120, center) },
 	},
 	buildings = {
 		{

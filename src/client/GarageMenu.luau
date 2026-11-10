@@ -1,12 +1,12 @@
 --!strict
 -- Garage: a 3x3 grid of tanks (columns = class, rows = tier) and a detail panel for the
--- highlighted tank with its stats, upgrades and a Select / Buy button. Opens on join and
--- when your tank is destroyed; C toggles it. The server validates every purchase and
+-- highlighted tank with its stats, upgrades and a Select / Buy button. Opens by itself for
+-- each pre-round countdown (time to counter-pick) and closes when the round starts; C
+-- toggles it any time. The server validates every purchase and
 -- decides whether a switch happens now or at your next respawn.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -18,7 +18,6 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankClass = require(ReplicatedStorage.Shared.TankClass)
-local TankController = require(script.Parent.TankController)
 
 type Data = PlayerDataTypes.Data
 
@@ -225,7 +224,6 @@ local mainButton = button(panel, UDim2.new(0, 14, 1, -42), UDim2.new(1, -28, 0, 
 
 local focused: string = Config.DefaultTank -- tank shown in the detail panel
 local autoOpened = false
-local lastTank: TankController.TankRefs? = nil
 local busy = false
 
 local function pips(level: number): string
@@ -234,9 +232,9 @@ end
 
 local function hint(): string
 	local phase = ReplicatedStorage:GetAttribute(RoundSchema.PhaseAttribute)
-	return if phase == "Active"
-		then "Changes apply now if your tank hasn't fired or been hit; otherwise on respawn.   [C] close"
-		else "Changes apply now (not in a round).   [C] close"
+	return if phase == "PreRound" or phase == "Waiting"
+		then "Changes apply now.   [C] close"
+		else "Changes apply next round.   [C] close"
 end
 
 local function render()
@@ -351,10 +349,7 @@ local function request(action: string, track: string?)
 	local ok, message = Remotes.GarageRequest:InvokeServer(action, focused, track)
 	busy = false
 	status.Text = if ok then hint() else `Can't do that: {message or "unknown error"}`
-	-- Picking a tank while alive sends you back to the fight.
-	if ok and action == "Select" and TankController.getTank() then
-		close()
-	end
+
 end
 
 for id, tile in tiles do
@@ -382,19 +377,18 @@ mainButton.Activated:Connect(function()
 	end
 end)
 
--- Open when the tank is lost; close an auto-opened garage when a new tank arrives.
-local function watchTank()
-	local tank = TankController.getTank()
-	if tank == lastTank then
-		return
-	end
-	lastTank = tank
-	if tank then
-		if autoOpened then
-			close()
+-- Auto-open for the pre-round countdown; close (if we opened it) when the round starts.
+local function onPhase()
+	local phase = ReplicatedStorage:GetAttribute(RoundSchema.PhaseAttribute)
+	if phase == "PreRound" then
+		if not gui.Enabled then
+			open(true)
 		end
-	elseif not gui.Enabled then
-		open(true)
+	elseif autoOpened then
+		close()
+	end
+	if gui.Enabled then
+		status.Text = hint()
 	end
 end
 
@@ -423,14 +417,8 @@ function GarageMenu.start()
 			end
 		end
 	end)
-	ReplicatedStorage:GetAttributeChangedSignal(RoundSchema.PhaseAttribute):Connect(function()
-		if gui.Enabled then
-			status.Text = hint()
-		end
-	end)
-	RunService.RenderStepped:Connect(watchTank)
-	-- First join: open the garage (manual open, so it stays until you choose or press C).
-	open(false)
+	ReplicatedStorage:GetAttributeChangedSignal(RoundSchema.PhaseAttribute):Connect(onPhase)
+	onPhase()
 end
 
 return GarageMenu

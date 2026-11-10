@@ -1,8 +1,10 @@
 --!strict
--- Tank lifecycle: one tank per player, spawned with their character, player seated as
--- driver and given network ownership of the tank so driving is responsive. When the
--- driver dies (usually because the tank ran out of health) the tank becomes a burning
--- wreck that lingers briefly; the player respawns with a new tank.
+-- Tank lifecycle: one tank per player, spawned with their character at their team's side
+-- of the map, player seated as driver and given network ownership of the tank so driving
+-- is responsive. When the driver dies (usually because the tank ran out of health) the
+-- tank becomes a burning wreck that lingers briefly. There is no automatic respawn:
+-- MatchService loads characters at the start of each round. While frozen (pre-round),
+-- hulls are anchored on the server so nobody can move early; turrets still turn.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,6 +12,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
+local TeamInfo = require(ReplicatedStorage.Shared.TeamInfo)
+local TeamService = require(script.Parent.TeamService)
 local TankBuilder = require(script.Parent.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
 local PlayerData = require(script.Parent.PlayerData)
@@ -28,19 +32,14 @@ type Record = {
 
 local TankService = {}
 
-local BODY_COLORS = {
-	Color3.fromRGB(90, 200, 120), -- mint
-	Color3.fromRGB(255, 120, 110), -- coral
-	Color3.fromRGB(100, 160, 255), -- sky
-	Color3.fromRGB(255, 200, 70), -- sunflower
-	Color3.fromRGB(190, 120, 255), -- grape
-}
+local NEUTRAL_COLOR = Color3.fromRGB(200, 200, 210)
 local WRECK_COLOR = Color3.fromRGB(38, 36, 40)
 
 local tanks: { [Player]: TankBuilder.Tank } = {}
 local records: { [Model]: Record } = {}
 local destroyedHandlers: { DestroyedHandler } = {}
 local rng = Random.new()
+local frozen = false
 
 local function folder(name: string): Folder
 	local existing = workspace:FindFirstChild(name)
@@ -53,9 +52,10 @@ local function folder(name: string): Folder
 	return created
 end
 
--- The spawn point farthest from every live tank, so nobody respawns in someone's sights.
-local function chooseSpawn(): CFrame
-	local spawnPoints = MapService.current().spawns
+-- The spawn point on the team's side farthest from every live tank, so teammates spread out.
+local function chooseSpawn(team: string?): CFrame
+	local map = MapService.current()
+	local spawnPoints = map.sides[if team then TeamService.sideOf(team) else 1]
 	local best = spawnPoints[rng:NextInteger(1, #spawnPoints)]
 	local bestDistance = -math.huge
 	for _, spawnPoint in spawnPoints do
@@ -75,8 +75,8 @@ local function chooseSpawn(): CFrame
 	return best
 end
 
-local function colorFor(player: Player): Color3
-	return BODY_COLORS[player.UserId % #BODY_COLORS + 1]
+local function colorFor(team: string?): Color3
+	return if team then TeamInfo.color(team) else NEUTRAL_COLOR
 end
 
 -- Remove a tank without a wreck (player left, round reset).
@@ -91,6 +91,9 @@ local function despawn(player: Player)
 end
 
 local function giveOwnership(tank: TankBuilder.Tank, owner: Player?)
+	if tank.hull.Anchored then
+		return -- anchored assemblies have no network owner; handed over on unfreeze
+	end
 	for _, part in { tank.hull, tank.turret, tank.barrel } do
 		if part.Parent and part:CanSetNetworkOwnership() then
 			part:SetNetworkOwner(owner)
@@ -133,6 +136,7 @@ local function wreck(tank: TankBuilder.Tank)
 
 	if position then
 		-- Server takes the physics back so the driver's client can't keep driving it.
+		tank.hull.Anchored = false
 		giveOwnership(tank, nil)
 		tank.drive.Enabled = false
 		tank.steer.Enabled = false
@@ -195,6 +199,9 @@ local function buildTank(
 ): TankBuilder.Tank
 	local tank = TankBuilder.build(spawnCFrame, color, tankId, upgrades)
 	tank.model.Name = name
+	if combatant.team then
+		tank.model:SetAttribute(TeamInfo.Attribute, combatant.team)
+	end
 	if owner then
 		tank.model:SetAttribute(TankSchema.OwnerAttribute, owner.UserId)
 	end
@@ -213,6 +220,10 @@ local function spawnTank(player: Player, character: Model)
 	if not data or player.Character ~= character then
 		return
 	end
+	local combatant = Combatant.forPlayer(player)
+	if not combatant.team then
+		return -- not on a team: spectating
+	end
 
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	character:WaitForChild("HumanoidRootPart")
@@ -222,13 +233,15 @@ local function spawnTank(player: Player, character: Model)
 
 	local tankId = TankCatalog.normalize(data.SelectedTank)
 	local upgrades = PlayerData.upgradesFor(data, tankId)
-	local tank = buildTank(chooseSpawn(), colorFor(player), tankId, upgrades, "Tank_" .. player.Name, Combatant.forPlayer(player), player)
+	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), tankId, upgrades, "Tank_" .. player.Name, combatant, player)
 	tanks[player] = tank
 
 	if not seatDriver(tank, humanoid) then
 		warn(`[TankService] could not seat {player.Name}`)
 	end
 	TankBuilder.sizeForces(tank)
+	-- Anchor only after sizing forces: an anchored assembly's mass isn't meaningful.
+	tank.hull.Anchored = frozen
 	giveOwnership(tank, player)
 
 	-- If the driver gets knocked out of the seat, put them back.
@@ -278,6 +291,27 @@ function TankService.getByModel(model: Model): (TankBuilder.Tank?, Player?)
 	return nil, nil
 end
 
+-- Who is fighting in a live tank model.
+function TankService.combatantOf(model: Model): Combatant.Combatant?
+	local record = records[model]
+	return if record then record.combatant else nil
+end
+
+-- Pre-round freeze: anchor every live hull (and any spawned while frozen) so nothing
+-- moves; on release, drivers get their network ownership back.
+function TankService.setFrozen(on: boolean)
+	frozen = on
+	for _, record in records do
+		local tank = record.tank
+		if tank.hull.Parent then
+			tank.hull.Anchored = on
+			if not on then
+				giveOwnership(tank, record.owner)
+			end
+		end
+	end
+end
+
 function TankService.onDestroyed(handler: DestroyedHandler)
 	table.insert(destroyedHandlers, handler)
 end
@@ -296,9 +330,10 @@ function TankService.liveTanks(): { { tank: TankBuilder.Tank, combatant: Combata
 	return list
 end
 
--- An AI-driven tank at the best spawn point. The server simulates it (no network owner).
-function TankService.spawnBot(combatant: Combatant.Combatant, color: Color3, tankId: string): TankBuilder.Tank
-	local tank = buildTank(chooseSpawn(), color, TankCatalog.normalize(tankId), nil, combatant.name, combatant, nil)
+-- An AI-driven tank at its team's side. The server simulates it (no network owner).
+function TankService.spawnBot(combatant: Combatant.Combatant, tankId: string): TankBuilder.Tank
+	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), TankCatalog.normalize(tankId), nil, combatant.name, combatant, nil)
+	tank.hull.Anchored = frozen
 	giveOwnership(tank, nil)
 	return tank
 end
@@ -315,7 +350,7 @@ end
 
 -- Studio testing: an ownerless, undriven tank to shoot at.
 function TankService.spawnDummy(spawnCFrame: CFrame): Model
-	local tank = buildTank(spawnCFrame, Color3.fromRGB(200, 200, 210), Config.DefaultTank, nil, "Dummy", Combatant.bot("Dummy"), nil)
+	local tank = buildTank(spawnCFrame, NEUTRAL_COLOR, Config.DefaultTank, nil, "Dummy", Combatant.bot("Dummy"), nil)
 	giveOwnership(tank, nil)
 	TankHealth.endProtection(tank.model)
 	return tank.model
@@ -330,8 +365,16 @@ local function onPlayerAdded(player: Player)
 	end
 end
 
+-- Remove every player's tank without wrecks (match/round reset).
+function TankService.despawnAll()
+	for _, player in Players:GetPlayers() do
+		despawn(player)
+	end
+end
+
 function TankService.start()
-	Players.RespawnTime = Config.Respawn.Delay
+	-- Characters (and so tanks) are loaded by MatchService each round; no auto-respawn.
+	Players.CharacterAutoLoads = false
 	TankHealth.onDepleted(onDepleted)
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(despawn)

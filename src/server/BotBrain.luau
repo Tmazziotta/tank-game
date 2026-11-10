@@ -1,5 +1,5 @@
 --!strict
--- One AI tank's behavior, stepped every server frame. It targets the nearest enemy
+-- One AI tank's behavior, stepped every server frame. It targets the nearest enemy-team tank
 -- (preferring ones in sight), closes to fighting range, then circles at an angle so its
 -- armor is angled; backs off when too close; steers around walls; reverses out when stuck;
 -- fires when its gun is on target with a clear line of sight, and blasts through walls
@@ -94,7 +94,8 @@ local function retarget(brain: Brain, now: number, params: RaycastParams)
 	local bestScore = math.huge
 	for _, entry in TankService.liveTanks() do
 		local hull = entry.tank.hull
-		if entry.tank ~= brain.tank and hull.Parent then
+		local enemy = brain.combatant.team == nil or entry.combatant.team ~= brain.combatant.team
+		if entry.tank ~= brain.tank and enemy and hull.Parent then
 			local visible = canSee(brain, entry.tank.model, hull, params)
 			local score = (hull.Position - myPosition).Magnitude
 			if not visible then

@@ -1,5 +1,5 @@
 --!strict
--- Per-round kills and deaths. Players' scores live in leaderstats so the default player
+-- Per-match kills and deaths. Players' scores live in leaderstats so the default player
 -- list shows them; bots' scores are kept here.
 
 local Players = game:GetService("Players")
@@ -90,40 +90,6 @@ function ScoreService.reset()
 			end
 		end
 	end
-end
-
--- Most kills wins; fewer deaths breaks a tie. Returns the winner's name (nil for a draw:
--- still tied or nobody scored), their kills, and the winning Player (nil for a bot).
-function ScoreService.winner(): (string?, number, Player?)
-	local entries: { { name: string, kills: number, deaths: number, player: Player? } } = {}
-	for _, player in Players:GetPlayers() do
-		local kills = stat(player, "Kills")
-		local deaths = stat(player, "Deaths")
-		if kills and deaths then
-			table.insert(entries, { name = player.DisplayName, kills = kills.Value, deaths = deaths.Value, player = player })
-		end
-	end
-	for name, score in botScores do
-		table.insert(entries, { name = name, kills = score.kills, deaths = score.deaths })
-	end
-
-	local best: string? = nil
-	local bestPlayer: Player? = nil
-	local bestKills, bestDeaths = 0, math.huge
-	local tied = false
-	for _, entry in entries do
-		if entry.kills > 0 then
-			if entry.kills > bestKills or (entry.kills == bestKills and entry.deaths < bestDeaths) then
-				best, bestPlayer, bestKills, bestDeaths, tied = entry.name, entry.player, entry.kills, entry.deaths, false
-			elseif entry.kills == bestKills and entry.deaths == bestDeaths then
-				tied = true
-			end
-		end
-	end
-	if tied then
-		return nil, bestKills, nil
-	end
-	return best, bestKills, bestPlayer
 end
 
 function ScoreService.start()

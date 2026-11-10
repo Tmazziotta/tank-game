@@ -4,9 +4,8 @@
 -- don't declare yet.)
 -- Garage: buy tanks, buy upgrades, choose which tank to drive. The client asks through
 -- Remotes.GarageRequest; the server validates everything against the player's saved data
--- and Config. A new choice (or upgrade) applies at the next spawn - immediately if
--- respawning costs nothing (outside an active round, or the current tank hasn't fired or
--- been hit yet).
+-- and Config. A new choice (or upgrade) applies at the next round's spawn - immediately
+-- during the pre-round countdown.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -17,7 +16,6 @@ local Progression = require(ReplicatedStorage.Shared.Progression)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
-local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
 
 local Garage = {}
@@ -35,8 +33,10 @@ local function canRespawnNow(player: Player): boolean
 	if last and os.clock() - last < Config.Combat.TankSwitchCooldown then
 		return false
 	end
-	local active = ReplicatedStorage:GetAttribute(RoundSchema.PhaseAttribute) == "Active"
-	return not active or not TankHealth.isEngaged(tank.model)
+	-- Swaps are free during the countdown (or with no match running); once a round is on,
+	-- the choice waits for the next round.
+	local phase = ReplicatedStorage:GetAttribute(RoundSchema.PhaseAttribute)
+	return phase == "PreRound" or phase == "Waiting"
 end
 
 -- Respawn into the saved choice if the live tank no longer matches it and that's free.

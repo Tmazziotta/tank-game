@@ -204,10 +204,12 @@ local Config = {
 	Economy = {
 		KillCoins = 25,
 		KillXP = 50,
-		WinCoins = 100,
-		WinXP = 150,
-		RoundCoins = 20, -- everyone present when a round ends
-		RoundXP = 50,
+		RoundWinCoins = 30, -- each player on the team that wins a round
+		RoundWinXP = 40,
+		MatchWinCoins = 100, -- each player on the team that wins the match
+		MatchWinXP = 150,
+		MatchCoins = 20, -- everyone present when a match ends
+		MatchXP = 50,
 		PlaytimeInterval = 60, -- seconds alive in an active round per playtime reward
 		PlaytimeCoins = 5,
 		PlaytimeXP = 10,
@@ -246,16 +248,12 @@ local Config = {
 	},
 
 	Respawn = {
-		Delay = 5, -- Players.RespawnTime
 		WreckLifetime = 5,
 		WreckLaunchSpeed = 22, -- upward kick given to the hull when it explodes
 		TurretPopSpeed = 45, -- the turret flies off
 	},
 
 	Bots = {
-		Count = 0, -- AI tanks on live servers
-		StudioCount = 1, -- Studio playtests get this many, so solo testing has an opponent
-		Color = Color3.fromRGB(150, 155, 170),
 		-- Fighting distance: close in beyond MaxRange, back off inside MinRange, circle between.
 		MinRange = 28,
 		MaxRange = 80,
@@ -280,11 +278,24 @@ local Config = {
 		UnstickTime = 1.0, -- reverse-and-turn duration when stuck
 	},
 
+	-- 3v3 elimination, best of 5. Bots fill empty team slots.
 	Round = {
-		MinPlayers = 2, -- below this the server waits (players can still drive and shoot)
-		Intermission = 10,
-		Duration = 180,
-		Results = 8,
+		MinPlayers = 1, -- real players needed to start a match (bots fill the rest)
+		TeamSize = 3,
+		RoundsToWin = 3, -- first to this many round wins takes the match...
+		MaxRounds = 5, -- ...or most round wins after this many rounds (draws can stall)
+		FirstPreRound = 12, -- countdown before round 1 (tanks frozen, garage open)
+		PreRound = 8, -- countdown before later rounds
+		Duration = 120, -- round time cap; then the team health % tiebreak decides
+		RoundOver = 5, -- round result screen
+		MatchOver = 10, -- match result screen
+		LiveInterval = 0.25, -- seconds between team alive/health updates to clients
+	},
+
+	Teams = {
+		Order = { "Red", "Blue" },
+		Red = { DisplayName = "Red", Color = Color3.fromRGB(255, 110, 100) },
+		Blue = { DisplayName = "Blue", Color = Color3.fromRGB(100, 160, 255) },
 	},
 }
 

@@ -1,7 +1,8 @@
 --!strict
--- Round UI: phase + timer at the top, center banners (round start, results, your own
--- death), and a kill feed. Reads round state from ReplicatedStorage attributes and the
--- TankDestroyed broadcast.
+-- Match UI. Top center: Red's alive pips and health %, the round score, Blue's health %
+-- and pips, with the timer and round/map below. Center banners for round start, round and
+-- match results and your own death. Kill feed in team colors. Everything is read from
+-- ReplicatedStorage attributes (RoundSchema) and the TankDestroyed broadcast.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +13,7 @@ local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
+local TeamInfo = require(ReplicatedStorage.Shared.TeamInfo)
 
 local RoundHud = {}
 
@@ -20,6 +22,7 @@ local FEED_LIFETIME = 6
 local GOLD = Color3.fromRGB(255, 215, 90)
 local RED = Color3.fromRGB(255, 110, 100)
 local WHITE = Color3.new(1, 1, 1)
+local DIM = Color3.fromRGB(70, 74, 96)
 
 local localPlayer = Players.LocalPlayer
 
@@ -28,10 +31,9 @@ gui.Name = "RoundHud"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 2
 
-local function label(name: string, size: UDim2, position: UDim2, textSize: number): TextLabel
+local function label(parent: Instance, size: UDim2, position: UDim2, textSize: number, anchor: Vector2?): TextLabel
 	local text = Instance.new("TextLabel")
-	text.Name = name
-	text.AnchorPoint = Vector2.new(0.5, 0)
+	text.AnchorPoint = anchor or Vector2.new(0.5, 0)
 	text.Size = size
 	text.Position = position
 	text.BackgroundTransparency = 1
@@ -39,20 +41,93 @@ local function label(name: string, size: UDim2, position: UDim2, textSize: numbe
 	text.TextSize = textSize
 	text.TextColor3 = WHITE
 	text.TextStrokeTransparency = 0.4
-	text.Parent = gui
+	text.Parent = parent
 	return text
 end
 
-local timer = label("Timer", UDim2.fromOffset(400, 40), UDim2.new(0.5, 0, 0, 6), 34)
-local status = label("Status", UDim2.fromOffset(500, 24), UDim2.new(0.5, 0, 0, 44), 20)
-local banner = label("Banner", UDim2.fromOffset(700, 120), UDim2.fromScale(0.5, 0.12), 52)
-banner.TextWrapped = true
+local function corner(parent: Instance, radius: UDim)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = radius
+	c.Parent = parent
+end
+
+-- Scoreboard ---------------------------------------------------------------------
+
+local board = Instance.new("Frame")
+board.AnchorPoint = Vector2.new(0.5, 0)
+board.Position = UDim2.new(0.5, 0, 0, 8)
+board.Size = UDim2.fromOffset(560, 54)
+board.BackgroundColor3 = Color3.fromRGB(28, 30, 42)
+board.BackgroundTransparency = 0.3
+board.Parent = gui
+corner(board, UDim.new(0, 12))
+
+local score = label(board, UDim2.fromOffset(120, 50), UDim2.new(0.5, 0, 0, 2), 40)
+
+type TeamPanel = { pips: { Frame }, fill: Frame, percent: TextLabel }
+local panels: { [string]: TeamPanel } = {}
+
+for index, team in TeamInfo.order do
+	local color = TeamInfo.color(team)
+	local left = index == 1
+	local x = if left then 12 else 560 - 12 - 200
+	local name = label(board, UDim2.fromOffset(200, 18), UDim2.fromOffset(x, 5), 16, Vector2.zero)
+	name.Text = string.upper((TeamInfo.get(team) :: TeamInfo.Team).DisplayName)
+	name.TextColor3 = color
+	name.TextXAlignment = if left then Enum.TextXAlignment.Left else Enum.TextXAlignment.Right
+
+	-- Alive pips beside the name.
+	local pips = {}
+	for i = 1, Config.Round.TeamSize do
+		local pip = Instance.new("Frame")
+		pip.Size = UDim2.fromOffset(12, 12)
+		local offset = 60 + (i - 1) * 16
+		pip.Position = UDim2.fromOffset(if left then x + offset else x + 200 - offset - 12, 8)
+		pip.BorderSizePixel = 0
+		pip.BackgroundColor3 = color
+		pip.Parent = board
+		corner(pip, UDim.new(0.5, 0))
+		pips[i] = pip
+	end
+
+	-- Team health bar (the tiebreak).
+	local track = Instance.new("Frame")
+	track.Position = UDim2.fromOffset(x, 30)
+	track.Size = UDim2.fromOffset(160, 14)
+	if not left then
+		track.Position = UDim2.fromOffset(x + 40, 30)
+	end
+	track.BackgroundColor3 = Color3.fromRGB(55, 58, 76)
+	track.BorderSizePixel = 0
+	track.Parent = board
+	corner(track, UDim.new(0.5, 0))
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = color
+	fill.BorderSizePixel = 0
+	fill.AnchorPoint = if left then Vector2.zero else Vector2.new(1, 0)
+	fill.Position = if left then UDim2.fromScale(0, 0) else UDim2.fromScale(1, 0)
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.Parent = track
+	corner(fill, UDim.new(0.5, 0))
+	local percent = label(board, UDim2.fromOffset(40, 14), UDim2.fromOffset(if left then x + 164 else x, 30), 14, Vector2.zero)
+	percent.TextXAlignment = if left then Enum.TextXAlignment.Left else Enum.TextXAlignment.Right
+
+	panels[team] = { pips = pips, fill = fill, percent = percent }
+end
+
+local timer = label(gui, UDim2.fromOffset(200, 30), UDim2.new(0.5, 0, 0, 64), 28)
+local status = label(gui, UDim2.fromOffset(600, 22), UDim2.new(0.5, 0, 0, 94), 18)
+
+-- Below the scoreboard and status line, above the garage panel.
+local banner = label(gui, UDim2.fromOffset(800, 56), UDim2.new(0.5, 0, 0, 124), 48)
+local subBanner = label(gui, UDim2.fromOffset(800, 28), UDim2.new(0.5, 0, 0, 180), 24)
 banner.Visible = false
+subBanner.Visible = false
 
 local feed = Instance.new("Frame")
 feed.Name = "KillFeed"
 feed.AnchorPoint = Vector2.new(1, 0)
-feed.Position = UDim2.new(1, -16, 0, 60)
+feed.Position = UDim2.new(1, -16, 0, 16)
 feed.Size = UDim2.fromOffset(340, 200)
 feed.BackgroundTransparency = 1
 feed.Parent = gui
@@ -62,35 +137,67 @@ layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 layout.Padding = UDim.new(0, 4)
 layout.Parent = feed
 
+-- State ------------------------------------------------------------------------------
+
 local bannerToken = 0
 local feedOrder = 0
-local deathBannerUntil = 0
 local lastPhase: string? = nil
 
+local function attr(name: string): any
+	return ReplicatedStorage:GetAttribute(name)
+end
+
 local function phase(): string
-	local value = ReplicatedStorage:GetAttribute(RoundSchema.PhaseAttribute)
+	local value = attr(RoundSchema.PhaseAttribute)
 	return if type(value) == "string" then value else "Waiting"
 end
 
 local function secondsLeft(): number
-	local endsAt = ReplicatedStorage:GetAttribute(RoundSchema.EndsAtAttribute)
+	local endsAt = attr(RoundSchema.EndsAtAttribute)
 	if type(endsAt) ~= "number" or endsAt <= 0 then
 		return 0
 	end
 	return math.max(0, endsAt - workspace:GetServerTimeNow())
 end
 
--- Show `text` in the middle of the screen; `duration` nil keeps it until replaced.
-local function showBanner(text: string, color: Color3, duration: number?)
+local function teamNumber(prefix: string, team: string): number
+	local value = attr(prefix .. team)
+	return if type(value) == "number" then value else 0
+end
+
+local function teamName(team: string?): string
+	local info = if team then TeamInfo.get(team) else nil
+	return if info then string.upper(info.DisplayName) else "?"
+end
+
+local function myTeam(): string?
+	local team = localPlayer.Team
+	if not team then
+		return nil
+	end
+	for _, name in TeamInfo.order do
+		local info = TeamInfo.get(name)
+		if info and info.DisplayName == team.Name then
+			return name
+		end
+	end
+	return nil
+end
+
+-- Show a banner; `duration` nil keeps it until replaced or hidden.
+local function showBanner(text: string, sub: string, color: Color3, duration: number?)
 	bannerToken += 1
 	local token = bannerToken
 	banner.Text = text
 	banner.TextColor3 = color
 	banner.Visible = true
+	subBanner.Text = sub
+	subBanner.Visible = sub ~= ""
 	if duration then
 		task.delay(duration, function()
 			if bannerToken == token then
 				banner.Visible = false
+				subBanner.Visible = false
 			end
 		end)
 	end
@@ -99,24 +206,53 @@ end
 local function hideBanner()
 	bannerToken += 1
 	banner.Visible = false
+	subBanner.Visible = false
 end
 
-local function resultsText(): string
-	local winner = ReplicatedStorage:GetAttribute(RoundSchema.WinnerAttribute)
-	local kills = ReplicatedStorage:GetAttribute(RoundSchema.WinnerKillsAttribute)
-	if type(winner) == "string" and winner ~= "" then
-		local suffix = if kills == 1 then "kill" else "kills"
-		return `{winner} WINS!\n{kills} {suffix}`
+local function percentText(fraction: number): string
+	return `{math.round(fraction * 100)}%`
+end
+
+local function roundResult()
+	local winner = attr(RoundSchema.RoundWinnerAttribute)
+	local reason = attr(RoundSchema.RoundReasonAttribute)
+	if type(winner) ~= "string" or winner == "" then
+		showBanner("ROUND DRAW", "", GOLD, nil)
+		return
 	end
-	return "DRAW!"
+	local loser = TeamInfo.other(winner)
+	local sub = if reason == "Wipe"
+		then `{teamName(loser)} eliminated`
+		else `on team health  {percentText(teamNumber(RoundSchema.HealthPrefix, winner))} - {percentText(
+			teamNumber(RoundSchema.HealthPrefix, loser)
+		)}`
+	showBanner(`{teamName(winner)} WINS THE ROUND`, sub, TeamInfo.color(winner), nil)
+end
+
+local function matchResult()
+	local winner = attr(RoundSchema.MatchWinnerAttribute)
+	local a, b = TeamInfo.order[1], TeamInfo.order[2]
+	local tally = `{teamNumber(RoundSchema.WinsPrefix, a)} - {teamNumber(RoundSchema.WinsPrefix, b)}`
+	if type(winner) == "string" and winner ~= "" then
+		local mine = winner == myTeam()
+		showBanner(`{teamName(winner)} WINS THE MATCH`, if mine then `Victory!  {tally}` else `Defeat  {tally}`, TeamInfo.color(winner), nil)
+	else
+		showBanner("MATCH DRAWN", tally, GOLD, nil)
+	end
 end
 
 local function onPhaseChanged(current: string)
-	if current == "Active" then
-		showBanner("FIGHT!", GOLD, 2)
-	elseif current == "Results" then
-		showBanner(resultsText(), GOLD, nil)
-	elseif lastPhase == "Results" then
+	if current == "PreRound" then
+		local round = attr(RoundSchema.RoundNumberAttribute) or 1
+		local team = myTeam()
+		showBanner(`ROUND {round}`, "", if team then TeamInfo.color(team) else WHITE, nil)
+	elseif current == "Active" then
+		showBanner("FIGHT!", "", GOLD, 1.5)
+	elseif current == "RoundOver" then
+		roundResult()
+	elseif current == "MatchOver" then
+		matchResult()
+	else
 		hideBanner()
 	end
 	lastPhase = current
@@ -133,36 +269,54 @@ local function update()
 		onPhaseChanged(current)
 	end
 	local left = secondsLeft()
-	local mapName = ReplicatedStorage:GetAttribute(RoundSchema.MapAttribute)
-	local mapSuffix = if type(mapName) == "string" and mapName ~= "" then ` - {string.upper(mapName)}` else ""
+
+	local a, b = TeamInfo.order[1], TeamInfo.order[2]
+	score.Text = `{teamNumber(RoundSchema.WinsPrefix, a)} : {teamNumber(RoundSchema.WinsPrefix, b)}`
+	for team, panel in panels do
+		local alive = teamNumber(RoundSchema.AlivePrefix, team)
+		local health = teamNumber(RoundSchema.HealthPrefix, team)
+		for i, pip in panel.pips do
+			pip.BackgroundColor3 = if i <= alive then TeamInfo.color(team) else DIM
+		end
+		panel.fill.Size = UDim2.fromScale(math.clamp(health, 0, 1), 1)
+		panel.percent.Text = percentText(health)
+	end
+
+	local mapName = attr(RoundSchema.MapAttribute)
+	local round = attr(RoundSchema.RoundNumberAttribute) or 1
+	local where = `ROUND {round} OF {Config.Round.MaxRounds}  ·  {string.upper(if type(mapName) == "string" then mapName else "")}`
 	if current == "Waiting" then
 		timer.Text = ""
-		status.Text = `WAITING FOR PLAYERS ({#Players:GetPlayers()}/{Config.Round.MinPlayers}) - WARM UP!`
-	elseif current == "Intermission" then
-		timer.Text = ""
-		status.Text = `ROUND STARTS IN {math.ceil(left)}{mapSuffix}`
+		status.Text = "WAITING FOR PLAYERS"
+	elseif current == "PreRound" then
+		timer.Text = tostring(math.ceil(left))
+		timer.TextColor3 = GOLD
+		local team = myTeam()
+		status.Text = if team then `{where}  ·  YOU ARE {teamName(team)}` else where
 	elseif current == "Active" then
 		timer.Text = formatTime(left)
 		timer.TextColor3 = if left <= 30 then RED else WHITE
-		status.Text = `FREE-FOR-ALL{mapSuffix} - MOST KILLS WINS`
-	else
+		status.Text = where
+	elseif current == "MatchOver" then
 		timer.Text = ""
-		status.Text = `NEXT ROUND IN {math.ceil(left)}`
+		status.Text = `NEXT MATCH IN {math.ceil(left)}`
+	else
+		-- RoundOver: the next round's number is set a moment early, so don't show it.
+		timer.Text = ""
+		status.Text = ""
 	end
-	if deathBannerUntil > 0 then
-		local respawnIn = deathBannerUntil - os.clock()
-		if respawnIn > 0 and banner.Visible then
-			banner.Text = string.gsub(banner.Text, "%d+$", tostring(math.ceil(respawnIn)))
-		else
-			deathBannerUntil = 0
-		end
-	end
+end
+
+local function colored(name: string, team: string?): string
+	local color = TeamInfo.color(team)
+	return string.format('<font color="#%s">%s</font>', color:ToHex(), name)
 end
 
 local function addFeedEntry(report: CombatTypes.DestroyedReport)
 	feedOrder += 1
 	local killerName = report.killerName
-	local text = if killerName then `{killerName}  >  {report.victimName}` else `{report.victimName} was destroyed`
+	local victim = colored(report.victimName, report.victimTeam)
+	local text = if killerName then `{colored(killerName, report.killerTeam)}  >  {victim}` else `{victim} was destroyed`
 	local involved = (report.killer ~= nil and report.killer == localPlayer) or report.victim == localPlayer
 
 	local entry = Instance.new("TextLabel")
@@ -174,11 +328,10 @@ local function addFeedEntry(report: CombatTypes.DestroyedReport)
 	entry.Font = Enum.Font.FredokaOne
 	entry.TextSize = 18
 	entry.TextColor3 = WHITE
+	entry.RichText = true
 	entry.Text = `  {text}  `
 	entry.Parent = feed
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = entry
+	corner(entry, UDim.new(0, 6))
 
 	local entries = {}
 	for _, child in feed:GetChildren() do
@@ -186,8 +339,8 @@ local function addFeedEntry(report: CombatTypes.DestroyedReport)
 			table.insert(entries, child)
 		end
 	end
-	table.sort(entries, function(a, b)
-		return a.LayoutOrder < b.LayoutOrder
+	table.sort(entries, function(x, y)
+		return x.LayoutOrder < y.LayoutOrder
 	end)
 	for i = 1, #entries - FEED_SIZE do
 		entries[i]:Destroy()
@@ -206,12 +359,14 @@ end
 
 local function onTankDestroyed(report: CombatTypes.DestroyedReport)
 	addFeedEntry(report)
-	if report.victim == localPlayer and phase() ~= "Results" then
+	if phase() ~= "Active" then
+		return
+	end
+	if report.victim == localPlayer then
 		local by = if report.killerName then `by {report.killerName}` else ""
-		deathBannerUntil = os.clock() + Config.Respawn.Delay
-		showBanner(`DESTROYED {by}\nRespawning in {Config.Respawn.Delay}`, RED, Config.Respawn.Delay)
-	elseif report.killer == localPlayer and report.victim ~= localPlayer then
-		showBanner(`DESTROYED {report.victimName}!`, GOLD, 1.5)
+		showBanner(`DESTROYED {by}`, "Spectating your team until the next round", RED, 3)
+	elseif report.killer == localPlayer then
+		showBanner(`DESTROYED {report.victimName}!`, "", GOLD, 1.5)
 	end
 end
 

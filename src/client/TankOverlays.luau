@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
+local TeamInfo = require(ReplicatedStorage.Shared.TeamInfo)
 
 local TankOverlays = {}
 
@@ -42,7 +43,11 @@ local function makeBillboard(model: Model, hull: BasePart): (BillboardGui, Frame
 	billboard.Adornee = hull
 	billboard.Size = UDim2.fromOffset(130, 36)
 	billboard.StudsOffset = Vector3.new(0, 8, 0)
-	billboard.AlwaysOnTop = true
+	-- Teammates' tags show through walls; enemies' don't (no free wallhack in elimination).
+	local team = model:GetAttribute(TeamInfo.Attribute)
+	local mine = localPlayer.Team
+	local ally = type(team) == "string" and mine ~= nil and (TeamInfo.get(team) :: any).DisplayName == mine.Name
+	billboard.AlwaysOnTop = ally
 	billboard.MaxDistance = 300
 	billboard.ResetOnSpawn = false
 
@@ -51,7 +56,7 @@ local function makeBillboard(model: Model, hull: BasePart): (BillboardGui, Frame
 	name.BackgroundTransparency = 1
 	name.Font = Enum.Font.FredokaOne
 	name.TextSize = 16
-	name.TextColor3 = Color3.new(1, 1, 1)
+	name.TextColor3 = if type(team) == "string" then TeamInfo.color(team) else Color3.new(1, 1, 1)
 	name.TextStrokeTransparency = 0.4
 	name.Text = `{displayName(model)} - {TankCatalog.ofModel(model).DisplayName}`
 	name.Parent = billboard

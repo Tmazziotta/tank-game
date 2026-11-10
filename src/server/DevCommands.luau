@@ -7,7 +7,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
-local BotService = require(script.Parent.BotService)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
@@ -28,11 +27,6 @@ local commands: { [string]: (...any) -> any } = {
 		local combatant = if attacker and attacker:IsA("Player") then Combatant.forPlayer(attacker) else nil
 		return TankHealth.damage(model, amount, combatant)
 	end,
-	-- setBots(count): add or remove AI tanks.
-	setBots = function(count: number)
-		BotService.setCount(count)
-		return BotService.count()
-	end,
 	-- grant(playerName, coins, xp): add currency/XP to a player's save. Returns their data.
 	grant = function(playerName: string, coins: number, xp: number)
 		local player = Players:FindFirstChild(playerName)
@@ -50,14 +44,11 @@ local commands: { [string]: (...any) -> any } = {
 		PlayerData.reset(player)
 		return PlayerData.get(player)
 	end,
-	-- loadMap(id): switch arena now ("Town", "Dockyard", "Orchard") and respawn everyone.
+	-- loadMap(id): switch arena now ("Town", "Dockyard", "Orchard"). Tanks stay where they
+	-- are until the next round spawns everyone on the new map.
 	loadMap = function(id: string)
 		assert(MapService.load(id), `unknown map {id}`)
-		TankService.clearWrecks()
-		for _, player in Players:GetPlayers() do
-			task.spawn(player.LoadCharacter, player)
-		end
-		BotService.respawnAll()
+		-- Takes effect for the next round (the round reset rebuilds the current map).
 		return nil
 	end,
 	-- setRound(key, value): tweak a Config.Round value live, e.g. ("MinPlayers", 1).

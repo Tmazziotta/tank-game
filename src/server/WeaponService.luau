@@ -21,6 +21,7 @@ local WeaponService = {}
 
 local lastFired: { [Combatant.Combatant]: number } = setmetatable({}, { __mode = "k" }) :: any
 local impactHandler: ImpactHandler? = nil
+local enabled = true
 
 local function isTurretPart(tank: TankBuilder.Tank, part: BasePart): boolean
 	local root = part.AssemblyRootPart
@@ -48,7 +49,9 @@ local function hitTank(
 	report.normal = normal
 	report.zone = result.zone
 	report.victim = owner
-	if TankHealth.isProtected(model) then
+	local victim = TankService.combatantOf(model)
+	local friendly = victim ~= nil and victim ~= shooter and victim.team ~= nil and victim.team == shooter.team
+	if friendly or TankHealth.isProtected(model) then
 		report.kind = "Shielded"
 		return false
 	elseif result.ricochet then
@@ -62,6 +65,9 @@ end
 
 -- Fire `tank`'s gun on behalf of `shooter`, if its reload is done. Returns whether it fired.
 function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Combatant): boolean
+	if not enabled then
+		return false
+	end
 	local now = os.clock()
 	local last = lastFired[shooter]
 	if last and now - last < tank.spec.Cooldown then
@@ -125,6 +131,11 @@ local function onFireRequest(player: Player)
 		return
 	end
 	WeaponService.fireFrom(tank, Combatant.forPlayer(player))
+end
+
+-- Pre-round: no one can fire.
+function WeaponService.setEnabled(on: boolean)
+	enabled = on
 end
 
 function WeaponService.start(onImpact: ImpactHandler)

@@ -16,8 +16,9 @@ local PlayerData = require(script.PlayerData)
 local PropCrusher = require(script.PropCrusher)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Rewards = require(script.Rewards)
-local RoundService = require(script.RoundService)
+local MatchService = require(script.MatchService)
 local ScoreService = require(script.ScoreService)
+local TeamService = require(script.TeamService)
 local TankService = require(script.TankService)
 local WeaponService = require(script.WeaponService)
 
@@ -36,6 +37,7 @@ ScoreService.start()
 PlayerData.start()
 Rewards.start()
 Garage.start()
+TeamService.start()
 TankService.start()
 PropCrusher.start()
 DevCommands.start()
@@ -55,10 +57,12 @@ TankService.onDestroyed(function(victim: Combatant.Combatant, killer: Combatant.
 		victim = victim.player,
 		killerName = if killer then killer.name else nil,
 		killer = if killer then killer.player else nil,
+		victimTeam = victim.team,
+		killerTeam = if killer then killer.team else nil,
 		position = position,
 	}
 	Remotes.TankDestroyed:FireAllClients(report)
 end)
 
 BotService.start()
-RoundService.start()
+MatchService.start()

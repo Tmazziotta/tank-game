@@ -32,13 +32,10 @@ local map: MapKit.MapDef = {
 	groundColor = Color3.fromRGB(105, 165, 85),
 	boundaryColor = Color3.fromRGB(150, 115, 85),
 	wanderRadius = 110,
-	spawns = {
-		MapKit.spawn(112, 0, center),
-		MapKit.spawn(-112, 0, center),
-		MapKit.spawn(0, 112, center),
-		MapKit.spawn(0, -112, center),
-		MapKit.spawn(100, 100, center),
-		MapKit.spawn(-100, -100, center),
+	-- Point-symmetric layout: each side has a grove on one flank and a building on the other.
+	sides = {
+		{ MapKit.spawn(0, -112, center), MapKit.spawn(-40, -110, center), MapKit.spawn(40, -110, center) },
+		{ MapKit.spawn(0, 112, center), MapKit.spawn(40, 110, center), MapKit.spawn(-40, 110, center) },
 	},
 	buildings = {
 		{

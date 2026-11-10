@@ -73,13 +73,9 @@ local map: MapKit.MapDef = {
 	groundColor = Color3.fromRGB(120, 125, 135),
 	boundaryColor = Color3.fromRGB(80, 90, 110),
 	wanderRadius = 60,
-	spawns = {
-		MapKit.spawn(-55, -72, center),
-		MapKit.spawn(0, -72, center),
-		MapKit.spawn(55, -72, center),
-		MapKit.spawn(-55, 72, center),
-		MapKit.spawn(0, 72, center),
-		MapKit.spawn(55, 72, center),
+	sides = {
+		{ MapKit.spawn(-55, -72, center), MapKit.spawn(0, -72, center), MapKit.spawn(55, -72, center) },
+		{ MapKit.spawn(-55, 72, center), MapKit.spawn(0, 72, center), MapKit.spawn(55, 72, center) },
 	},
 	buildings = buildings,
 	cover = cover,
