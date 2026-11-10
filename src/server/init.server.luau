@@ -12,6 +12,7 @@ local Destruction = require(script.Destruction)
 local DevCommands = require(script.DevCommands)
 local Garage = require(script.Garage)
 local MapService = require(script.MapService)
+local MineService = require(script.MineService)
 local PlayerData = require(script.PlayerData)
 local PropCrusher = require(script.PropCrusher)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -20,9 +21,11 @@ local MatchService = require(script.MatchService)
 local ScoreService = require(script.ScoreService)
 local TeamService = require(script.TeamService)
 local TankService = require(script.TankService)
+local WaterService = require(script.WaterService)
 local WeaponService = require(script.WeaponService)
 
-local function blast(position: Vector3, radius: number)
+-- Breaks walls and props (not mines: MineService chains those itself).
+local function breakThings(position: Vector3, radius: number)
 	local roots: { Instance } = { DebrisService.getFolder() }
 	local buildings = MapService.getBuildingsFolder()
 	if buildings then
@@ -30,6 +33,12 @@ local function blast(position: Vector3, radius: number)
 	end
 	Destruction.blast(position, radius, roots)
 	PropCrusher.blast(position, radius)
+end
+
+-- Any explosion: breaks things and sets off mines it reaches (credited to `cause`).
+local function blast(position: Vector3, radius: number, cause: Combatant.Combatant?)
+	breakThings(position, radius)
+	MineService.blast(position, radius, cause)
 end
 
 MapService.RoundReset()
@@ -42,9 +51,11 @@ TankService.start()
 PropCrusher.start()
 DevCommands.start()
 
-WeaponService.start(function(position: Vector3, radius: number, _shooter: Combatant.Combatant)
-	blast(position, radius)
+WeaponService.start(function(position: Vector3, radius: number, shooter: Combatant.Combatant)
+	blast(position, radius, shooter)
 end)
+MineService.start(breakThings)
+WaterService.start()
 
 TankService.onDestroyed(function(victim: Combatant.Combatant, killer: Combatant.Combatant?, position: Vector3?)
 	ScoreService.recordDeath(victim, killer)

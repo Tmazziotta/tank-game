@@ -94,6 +94,10 @@ function TankHealth.setEnabled(on: boolean)
 end
 
 -- Called (deferred, once per tank) when a tank's health reaches zero.
+function TankHealth.isEnabled(): boolean
+	return enabled
+end
+
 function TankHealth.onDepleted(handler: DepletedHandler)
 	depletedHandler = handler
 end

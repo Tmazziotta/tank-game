@@ -23,4 +23,6 @@ return {
 	Reward = folder:WaitForChild("Reward") :: RemoteEvent,
 	-- server -> all clients: (report: CombatTypes.DestroyedReport)
 	TankDestroyed = folder:WaitForChild("TankDestroyed") :: RemoteEvent,
+	-- server -> all clients: (kind: "Mine" | "Sink", position: Vector3) for effects
+	HazardEvent = folder:WaitForChild("HazardEvent") :: RemoteEvent,
 }

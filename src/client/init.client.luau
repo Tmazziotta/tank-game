@@ -2,6 +2,7 @@
 -- Client bootstrap.
 
 local GarageMenu = require(script.GarageMenu)
+local HazardEffects = require(script.HazardEffects)
 local ProfileClient = require(script.ProfileClient)
 local ProgressHud = require(script.ProgressHud)
 local RoundHud = require(script.RoundHud)
@@ -15,6 +16,7 @@ ProfileClient.start()
 TankController.start()
 WeaponClient.start()
 RoundHud.start()
+HazardEffects.start()
 Spectator.start()
 Scope.start()
 task.spawn(ProgressHud.start)

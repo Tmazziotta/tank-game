@@ -1,11 +1,12 @@
 --!strict
 -- Dockyard: three routes between the spawns.
---   West, the quay: a long open dock with crane legs and bollards. Fast, exposed, long
---     sightlines down the waterfront.
+--   West, the quay: a long asphalt dock (fast) with crane legs and bollards along the harbor
+--     edge; drive off it and you sink. A flooded dry dock cuts it in half: cross on the
+--     bridge or squeeze past the end. Long sightlines down the waterfront.
 --   Center, the container stacks: a maze of indestructible containers with brick walls
---     sealing some gaps. Close-quarters brawling; blast a wall to open a shortcut.
---   East, the warehouses: two big sheds per side you can shoot your way through, and a
---     raised loading dock in the middle of the lane.
+--     sealing some gaps, and oil slicks that send tanks sliding. Close-quarters brawling.
+--   East, the warehouses: a gravel yard with two big sheds per side you can shoot your way
+--     through, and a raised loading dock in the middle of the lane.
 -- Mirrored across z = 0, so both sides get the same map.
 
 local MapKit = require(script.Parent.Parent.MapKit)
@@ -55,10 +56,10 @@ for _, z in { -150, -70 } do
 	MapKit.block(cover, -175, z, Vector3.new(6, 30, 6), STEEL, Enum.Material.Metal)
 end
 for _, z in { -195, -115, -35 } do
-	MapKit.block(cover, -238, z, Vector3.new(4, 3, 4), CONCRETE, Enum.Material.Metal)
+	MapKit.block(cover, -226, z, Vector3.new(4, 3, 4), CONCRETE, Enum.Material.Metal)
 end
 container(cover, -150, -110, TEAL, 90, 2)
-container(cover, -200, -30, ORANGE)
+container(cover, -190, -52, ORANGE)
 -- Container stacks: rows across the lane with gaps; some gaps sealed by brick walls.
 container(cover, -75, -140, RED)
 container(cover, -20, -140, ORANGE, nil, 2)
@@ -100,15 +101,30 @@ for _, p in { { -190, -170 }, { -160, -40 }, { -230, -85 }, { -45, -115 }, { 40,
 end
 MapKit.fence(props, 110, -200, 110, -120)
 
-MapKit.mirrorCover(cover, center)
-MapKit.mirrorBuildings(buildings, center)
-MapKit.mirrorProps(props, center)
+-- Ground: asphalt quay (fast), oil slicks in the maze (no grip), gravel yard.
+local ground: { MapKit.Patch } = {}
+MapKit.patch(ground, "Road", -172, -134, 120, 228)
+MapKit.patch(ground, "Oil", 0, -72, 36, 26)
+MapKit.patch(ground, "Oil", 60, -118, 26, 30, 30)
+MapKit.patch(ground, "Gravel", 185, -115, 110, 200)
+
+MapKit.mirror(cover, center)
+MapKit.mirror(buildings, center)
+MapKit.mirror(props, center)
+MapKit.mirror(ground, center)
 
 -- Center line ----------------------------------------------------------------------------
 
 container(cover, -150, 0, BLUE, nil, 2)
 container(cover, -30, 0, ORANGE, 90, 2)
 container(cover, 30, 0, TEAL, 90)
+-- The harbor: deep water along the west edge, and a flooded dry dock cutting into the quay.
+MapKit.patch(ground, "DeepWater", -241, 0, 18, 500)
+MapKit.patch(ground, "DeepWater", -214, 0, 72, 36)
+local crossings: { { Vector3 } } = {
+	MapKit.bridge(cover, props, -205, 0, 22, 40),
+	{ Vector3.new(-170, 0, -30), Vector3.new(-170, 0, 30) }, -- past the dry dock's end
+}
 -- Loading dock: raised slab in the east lane, ramps at both ends.
 MapKit.plateau(cover, 185, 0, 70, 50, 5, { "S", "N" }, CONCRETE)
 container(cover, 175, 0, RED, 90) -- cover on the dock
@@ -125,6 +141,8 @@ local map: MapKit.MapDef = {
 	buildings = buildings,
 	cover = cover,
 	props = props,
+	ground = ground,
+	crossings = crossings,
 }
 
 return map

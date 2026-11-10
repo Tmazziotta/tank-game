@@ -36,8 +36,9 @@ local WHEEL = Color3.fromRGB(255, 150, 60)
 local LIGHT = Color3.fromRGB(255, 240, 150)
 
 local function contactPhysics(): PhysicalProperties
-	-- High weights make the tank's low friction dominate over the ground's.
-	return PhysicalProperties.new(0.7, Config.Tank.GroundFriction, 0, 100, 100)
+	-- A high friction weight makes the tank's low friction dominate ordinary ground (weight 1:
+	-- ~0.157 combined), while slippery patches (weight 100) still win (~0.025 on ice/oil).
+	return PhysicalProperties.new(0.7, Config.Tank.GroundFriction, 0, 20, 100)
 end
 
 local function lighten(color: Color3, amount: number): Color3
@@ -363,11 +364,13 @@ end
 function TankBuilder.sizeForces(tank: Tank)
 	local mass = tank.hull.AssemblyMass + tank.turret.AssemblyMass + tank.barrel.AssemblyMass
 	local frictionAccel = workspace.Gravity * Config.Tank.GroundFriction
-	tank.drive.MaxAxesForce = Vector3.new(
+	local force = Vector3.new(
 		mass * (Config.Tank.LateralGrip + frictionAccel),
 		0,
 		mass * (tank.spec.DriveAcceleration + frictionAccel)
 	)
+	tank.drive.MaxAxesForce = force
+	tank.drive:SetAttribute(TankSchema.BaseForceAttribute, force)
 	tank.steer:SetAttribute(TankSchema.MaxTorqueAttribute, mass * Config.Tank.TurnTorquePerMass)
 	tank.upright.MaxTorque = mass * Config.Tank.UprightTorquePerMass
 end

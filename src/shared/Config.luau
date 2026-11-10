@@ -234,6 +234,50 @@ local Config = {
 		GroundMargin = 200, -- baseplate extends this far past the boundary
 	},
 
+	-- Ground surfaces change how tanks drive: multipliers on top speed, acceleration (drive
+	-- force), sideways grip and turn rate. Brake (optional, defaults to Accel) is the drive
+	-- force while coasting: low on ice, so tanks keep sliding. A ground part's "Surface" attribute picks the
+	-- kind; otherwise its material does (terrain included).
+	Surfaces = {
+		Kinds = {
+			Normal = { Speed = 1, Accel = 1, Grip = 1, Turn = 1 },
+			Road = { Speed = 1.15, Accel = 1.1, Grip = 1, Turn = 1 },
+			Gravel = { Speed = 0.9, Accel = 0.85, Grip = 0.85, Turn = 0.95 },
+			Sand = { Speed = 0.75, Accel = 0.7, Grip = 0.9, Turn = 0.85 },
+			Mud = { Speed = 0.5, Accel = 0.5, Grip = 0.8, Turn = 0.6 },
+			Ice = { Speed = 1, Accel = 0.3, Brake = 0.03, Grip = 0.04, Turn = 0.7 }, -- slides, drifts, slow to stop
+			Ford = { Speed = 0.55, Accel = 0.6, Grip = 0.9, Turn = 0.75 }, -- shallow water
+		},
+		Materials = {
+			[Enum.Material.Mud] = "Mud",
+			[Enum.Material.Ice] = "Ice",
+			[Enum.Material.Glacier] = "Ice",
+			[Enum.Material.Cobblestone] = "Road",
+			[Enum.Material.Asphalt] = "Road",
+			[Enum.Material.Pebble] = "Gravel",
+			[Enum.Material.Sand] = "Sand",
+		},
+		ProbeInterval = 0.1, -- seconds between checks of what's under a tank
+		ProbeDepth = 8, -- studs below the hull center
+	},
+
+	Hazards = {
+		WaterCheckInterval = 0.15,
+		MineTriggerRadius = 4.5, -- a hull this close (flat distance) sets a mine off
+		MineDamage = 60, -- at the center; falls to half at the edge of the blast
+		MineBlastRadius = 11,
+		MineChainDelay = 0.15, -- a mine caught in a blast goes off this much later
+		MineChainRadius = 5, -- a mine sets off neighbors this close (less than the spacing, so
+		-- one mine doesn't clear a whole field; a shell blast clears a local path)
+		MineSpacing = 8, -- minimum distance between mines in a field
+		MineCheckInterval = 0.05,
+	},
+
+	Terrain = {
+		MountainStart = 10, -- studs past the boundary before mountains begin
+		MountainRise = 70, -- studs over which they reach full height
+	},
+
 	Props = {
 		CrateSize = 4.5,
 		FenceSegment = 8, -- studs per fence piece (each breaks separately)
@@ -278,12 +322,16 @@ local Config = {
 		HiddenTargetPenalty = 120, -- studs added to a target's distance when it is out of sight
 		AvoidDistance = 14, -- look-ahead for walls
 		AvoidRadius = 4.5, -- sphere cast radius: about half the tank's width
-		AvoidCommitTime = 1.5,
-		WalkableNormalY = 0.9, -- surfaces flatter than ~25 deg (ramps) don't count as walls -- keep swerving to the same side this long (follows walls around)
+		AvoidCommitTime = 1.5, -- keep swerving to the same side this long (follows walls around)
+		HazardLookahead = 18, -- studs ahead checked for deep water and minefields
+		RouteSampleSpacing = 10, -- studs between deep-water checks on the line to a target
+		RouteReach = 12, -- a detour point counts as reached this close
+		WalkableNormalY = 0.9, -- surfaces flatter than ~25 deg (ramps) don't count as walls
 		SteerSoftAngle = math.rad(30), -- heading error that gets full turn input
 		StuckSpeed = 1.5, -- below this (studs/s) while driving or turning counts as stuck...
 		StuckSpin = 0.15, -- ...if also turning slower than this (rad/s)
 		StuckTime = 1.2,
+		StallTime = 3, -- driving but not moving this long (even while turning) also counts as stuck
 		UnstickTime = 1.0, -- reverse-and-turn duration when stuck
 	},
 

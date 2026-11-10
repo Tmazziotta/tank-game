@@ -1,11 +1,12 @@
 --!strict
 -- Orchard: three routes between the spawns.
---   West, the orchards: rows of fruit trees. Concealment, not cover: they hide you until
---     someone plows or shoots through them.
---   Center, the field: wide-open farmland around a low hill. The hill sees everything, and
---     everything sees the hill. Scope country.
---   East, the village: a barn, a farmhouse, a silo, fences and hay. Corners and short
---     sightlines.
+--   West, the orchards: rows of fruit trees on rolling ground. Concealment, not cover:
+--     they hide you until someone plows or shoots through them.
+--   Center, the field: open farmland around a big grassy hill, with muddy plowed fields and
+--     a minefield across the middle: go around, or risk it (or shoot a path through). The
+--     hill sees everything, and everything sees the hill. Scope country.
+--   East, the village: a barn, a farmhouse, a silo, fences, hay, a gravel track and a deep
+--     farm pond. Corners and short sightlines.
 -- Mirrored across z = 0, so both sides get the same map.
 
 local MapKit = require(script.Parent.Parent.MapKit)
@@ -13,7 +14,6 @@ local MapKit = require(script.Parent.Parent.MapKit)
 local at = MapKit.at
 local center = Vector3.new(0, 0, 0)
 
-local GRASS_HILL = Color3.fromRGB(95, 150, 75)
 local SILO = Color3.fromRGB(200, 200, 205)
 
 -- South half --------------------------------------------------------------------------
@@ -29,9 +29,9 @@ MapKit.block(cover, -95, -90, Vector3.new(6, 8, 40), HEDGE, Enum.Material.Grass)
 MapKit.block(cover, 100, -175, Vector3.new(6, 8, 50), HEDGE, Enum.Material.Grass)
 MapKit.block(cover, 100, -80, Vector3.new(6, 8, 44), HEDGE, Enum.Material.Grass)
 -- Field boulders.
-MapKit.rock(cover, -45, -120, Vector3.new(14, 8, 10), 20)
-MapKit.rock(cover, 50, -85, Vector3.new(12, 7, 9), -35)
-MapKit.rock(cover, -10, -85, Vector3.new(10, 6, 14), 10)
+MapKit.rock(cover, -80, -118, Vector3.new(14, 8, 10), 20)
+MapKit.rock(cover, 68, -88, Vector3.new(12, 7, 9), -35)
+MapKit.rock(cover, -62, -92, Vector3.new(10, 6, 14), 10)
 -- Orchard: a stone well and a tool shed wall.
 MapKit.rock(cover, -175, -95, Vector3.new(8, 6, 8), 0)
 -- Village: silo.
@@ -84,16 +84,36 @@ MapKit.crates(props, 230, -165, -20)
 MapKit.crates(props, 170, -20, 40)
 MapKit.crates(props, -120, -40, 0)
 
-MapKit.mirrorCover(cover, center)
-MapKit.mirrorBuildings(buildings, center)
-MapKit.mirrorProps(props, center)
+-- Ground: plowed mud fields, gravel track through the village, deep farm pond.
+local ground: { MapKit.Patch } = {}
+MapKit.patch(ground, "Mud", -50, -150, 50, 40)
+MapKit.patch(ground, "Mud", 55, -185, 40, 26)
+MapKit.patch(ground, "Gravel", 140, -125, 16, 250)
+MapKit.patch(ground, "DeepWater", 215, -195, 36, 26)
+
+-- The minefield across the open field.
+local minefields: { MapKit.Minefield } = {}
+MapKit.minefield(minefields, 0, -110, 90, 22, 14, 41)
+
+-- Rolling ground in the orchard and the field.
+local hills: { MapKit.Hill } = {}
+MapKit.hill(hills, -160, -60, 45, 4)
+MapKit.hill(hills, 75, -130, 38, 4)
+
+MapKit.mirror(cover, center)
+MapKit.mirror(buildings, center)
+MapKit.mirror(props, center)
+MapKit.mirror(ground, center)
+MapKit.mirror(minefields, center)
+MapKit.mirror(hills, center)
 
 -- Center line ----------------------------------------------------------------------------
 
--- The hill: low and wide, ramps on all four sides. Two rocks on top for hull-down cover.
-MapKit.plateau(cover, 0, 0, 70, 50, 6, { "S", "N", "W", "E" }, GRASS_HILL)
-MapKit.rock(cover, -15, 0, Vector3.new(6, 10, 14), 5)
-MapKit.rock(cover, 18, 6, Vector3.new(6, 10, 12), -10)
+-- The hill: a big smooth terrain hill (drivable from every side). Two rocks on top for
+-- hull-down cover.
+MapKit.hill(hills, 0, 0, 95, 9)
+MapKit.rock(cover, -15, 0, Vector3.new(6, 6, 14), 5)
+MapKit.rock(cover, 18, 6, Vector3.new(6, 6, 12), -10)
 MapKit.grove(props, -230, -16, 3, 3, 16, 24)
 MapKit.fence(props, 150, 0, 240, 0)
 
@@ -109,6 +129,14 @@ local map: MapKit.MapDef = {
 	buildings = buildings,
 	cover = cover,
 	props = props,
+	ground = ground,
+	minefields = minefields,
+	terrain = {
+		hills = hills,
+		hillMaterial = Enum.Material.Grass,
+		mountains = { height = 80, material = Enum.Material.Grass, peak = Enum.Material.Rock, seed = 9 },
+		colors = { [Enum.Material.Grass] = Color3.fromRGB(105, 165, 85), [Enum.Material.Rock] = Color3.fromRGB(130, 125, 120) },
+	},
 }
 
 return map

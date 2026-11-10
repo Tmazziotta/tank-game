@@ -30,7 +30,16 @@ Fight a best-of-5 match → earn coins/XP → unlock or upgrade tanks (or counte
   - A high-ground route: a plateau or hill with ramps that overlooks the others.
 - **Symmetric:** each map is mirrored across the centerline, and teams also swap sides each round.
 - **Slopes:** ramps are at most 10 degrees (tanks stall past ~15). Each ramp spans its plateau's whole side, with corner fills, so there are no inside corners to get stuck in.
-- **Launch maps:** Town (park / streets / ridge), Dockyard (quay / container maze / warehouses + loading dock), Orchard (orchards / open field + hill / village).
+- **Ground surfaces** change how tanks drive (speed, acceleration, grip, turning): roads are fast, gravel slightly slow, mud about half speed, sand slow, ice and oil slide and drift, and shallow fords slow you down. Each map has its own mix, so route choice is also a speed choice.
+- **Hazards:**
+  - **Deep water:** driving in sinks the tank (destroyed; the last attacker gets the kill). Rivers and harbors are crossed by bridges, fords or going around, which creates chokepoints.
+  - **Minefields:** marked zones with warning signs and partly buried mines. A mine does heavy damage to any team; shells and explosions set mines off, so you can shoot a path through (and get credit for enemies caught in it). Mines only chain to very close neighbors, so one mine never clears a whole field.
+- **Terrain:** smooth terrain for gentle, drivable hills (hull-down spots) and a mountain backdrop outside the boundary. Never breaks.
+- **Launch maps:**
+  - **Town:** a river across the middle crossed at a muddy park ford (guarded by mines), a single street bridge, or around the end over the ridge. Cobbled streets, gravel ridge climb.
+  - **Dockyard:** harbor edge and a flooded dry dock on the asphalt quay (bridge or squeeze past), oil slicks in the container maze, gravel warehouse yard.
+  - **Orchard:** a big grassy hill in the open field, a minefield across the field, plowed mud fields, rolling orchard ground, a deep farm pond and a gravel track through the village.
+- **Later:** a winter map built around ice (a frozen lake).
 
 ## Destruction rules
 - **Breakable cover:** Pre-fractured buildings and walls; shells knock out chunks in a blast radius.

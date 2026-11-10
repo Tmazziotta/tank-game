@@ -190,6 +190,11 @@ function ShotEffects.land(report: CombatTypes.ShotReport)
 	end
 end
 
+-- A generic explosion (e.g. a mine).
+function ShotEffects.explosion(position: Vector3, radius: number)
+	impact(position, radius, 60)
+end
+
 -- A tank blowing up.
 function ShotEffects.tankExplosion(position: Vector3)
 	impact(position, Config.Combat.WreckBlastRadius * 1.5, 70)

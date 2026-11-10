@@ -4,6 +4,7 @@
 -- Whoever simulates a tank's physics calls these every frame.
 
 local Config = require(script.Parent.Config)
+local Surfaces = require(script.Parent.Surfaces)
 local TankCatalog = require(script.Parent.TankCatalog)
 local TankClass = require(script.Parent.TankClass)
 local TankSchema = require(script.Parent.TankSchema)
@@ -18,6 +19,8 @@ export type Refs = {
 	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
 	spec: TankClass.Spec,
+	surface: string, -- what the hull is on (Config.Surfaces.Kinds), refreshed every ProbeInterval
+	surfaceCheckedAt: number,
 }
 
 local TankDrive = {}
@@ -61,6 +64,8 @@ function TankDrive.resolve(model: Model): Refs?
 		barrelHinge = barrelHinge,
 		muzzle = muzzle,
 		spec = TankCatalog.ofModel(model),
+		surface = "Normal",
+		surfaceCheckedAt = 0,
 	}
 end
 
@@ -79,14 +84,29 @@ end
 function TankDrive.drive(tank: Refs, throttle: number, turn: number, dt: number)
 	local cfg = Config.Tank
 	local spec = tank.spec
+	local now = os.clock()
+	if now - tank.surfaceCheckedAt >= Config.Surfaces.ProbeInterval then
+		tank.surfaceCheckedAt = now
+		tank.surface = Surfaces.kindAt(tank.hull.Position)
+	end
+	local ground = Surfaces.modifiers(tank.surface)
+
 	local speed = if throttle >= 0 then spec.MaxForwardSpeed else spec.MaxReverseSpeed
 	-- Attachment space: -Z is forward. Positive spin about up is counter-clockwise, so right = negative.
-	tank.drive.VectorVelocity = Vector3.new(0, 0, -throttle * speed)
+	tank.drive.VectorVelocity = Vector3.new(0, 0, -throttle * speed * ground.Speed)
+	-- Ground grip: scale the drive force (acceleration) and sideways correction (grip) from
+	-- the full-traction values the server sized for this tank.
+	local base = tank.drive:GetAttribute(TankSchema.BaseForceAttribute)
+	if typeof(base) == "Vector3" then
+		local coasting = math.abs(throttle) < 0.05
+		local push = if coasting then ground.Brake or ground.Accel else ground.Accel
+		tank.drive.MaxAxesForce = Vector3.new(base.X * ground.Grip, 0, base.Z * push)
+	end
 
 	-- Yaw-rate controller. Runs once per frame while physics substeps, so instead of a fixed
 	-- gain (which overshoots and chatters) it asks for the torque that closes a fraction of
 	-- the rate error within this frame, plus friction feed-forward while turning.
-	local targetRate = -turn * spec.TurnRate
+	local targetRate = -turn * spec.TurnRate * ground.Turn
 	local yawRate = tank.hull.AssemblyAngularVelocity:Dot(tank.hull.CFrame.UpVector)
 	local maxTorque = tank.steer:GetAttribute(TankSchema.MaxTorqueAttribute)
 	local cap = if type(maxTorque) == "number" then maxTorque else 0

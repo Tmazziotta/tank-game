@@ -31,6 +31,51 @@ export type Prop = {
 	length: number?, -- fence pieces only
 }
 
+-- Thin ground patch: changes the surface (mud, gravel...), or is water. Doesn't collide.
+export type Patch = {
+	look: PatchLook,
+	size: Vector2, -- X, Z
+	origin: CFrame, -- ground-level center
+}
+
+-- Minefield: a marked zone with `count` mines scattered inside it.
+export type Minefield = {
+	size: Vector2,
+	origin: CFrame,
+	count: number,
+	seed: number,
+}
+
+-- Gentle terrain hill: a smooth bump `height` tall, `radius` wide.
+export type Hill = {
+	origin: CFrame,
+	radius: number,
+	height: number,
+}
+
+export type TerrainDef = {
+	hills: { Hill },
+	hillMaterial: Enum.Material,
+	mountains: { height: number, material: Enum.Material, peak: Enum.Material?, seed: number }?,
+	colors: { [Enum.Material]: Color3 }?,
+}
+
+-- Looks for ground patches: material, color, and what they do.
+export type PatchLook = "Mud" | "Gravel" | "Road" | "Sand" | "Ice" | "Oil" | "Ford" | "DeepWater" | "Minefield"
+
+export type PatchStyle = {
+	material: Enum.Material,
+	color: Color3,
+	surface: string?, -- Config.Surfaces.Kinds key (else the material decides)
+	hazard: string?,
+	transparency: number?,
+	reflectance: number?,
+	layer: number, -- higher layers sit on top where patches overlap
+	-- Solid and frictionless: tanks ride on it and slide (ice, oil). Other patches are
+	-- non-colliding decals over the ground, so ground friction still applies there.
+	slippery: boolean?,
+}
+
 export type MapDef = {
 	id: string,
 	displayName: string,
@@ -43,9 +88,27 @@ export type MapDef = {
 	buildings: { Building }, -- destructible (buildings and free-standing walls)
 	cover: { Cover }, -- indestructible
 	props: { Prop }, -- crushable
+	ground: { Patch }?, -- surfaces and water
+	minefields: { Minefield }?,
+	terrain: TerrainDef?,
+	-- Routes across deep water for bots: each is a list of points to drive through in order
+	-- (either direction), e.g. both ends of a bridge.
+	crossings: { { Vector3 } }?,
 }
 
 local MapKit = {}
+
+MapKit.PatchStyles = {
+	Mud = { material = Enum.Material.Mud, color = Color3.fromRGB(100, 75, 50), layer = 1 },
+	Gravel = { material = Enum.Material.Pebble, color = Color3.fromRGB(160, 155, 145), layer = 1 },
+	Road = { material = Enum.Material.Cobblestone, color = Color3.fromRGB(135, 130, 125), layer = 2 },
+	Sand = { material = Enum.Material.Sand, color = Color3.fromRGB(215, 195, 140), layer = 1 },
+	Ice = { material = Enum.Material.Ice, color = Color3.fromRGB(185, 220, 245), layer = 1, slippery = true },
+	Oil = { material = Enum.Material.SmoothPlastic, color = Color3.fromRGB(25, 25, 32), surface = "Ice", reflectance = 0.35, layer = 2, slippery = true },
+	Ford = { material = Enum.Material.SmoothPlastic, color = Color3.fromRGB(95, 170, 210), surface = "Ford", transparency = 0.2, reflectance = 0.15, layer = 4 },
+	DeepWater = { material = Enum.Material.SmoothPlastic, color = Color3.fromRGB(30, 85, 150), surface = "Ford", hazard = "DeepWater", transparency = 0.05, reflectance = 0.25, layer = 3 },
+	Minefield = { material = Enum.Material.Ground, color = Color3.fromRGB(115, 95, 70), hazard = "Mines", layer = 1 },
+} :: { [PatchLook]: PatchStyle }
 
 local GROUND = Color3.fromRGB(150, 140, 120)
 
@@ -136,27 +199,11 @@ local function reflected(origin: CFrame, center: Vector3): CFrame
 	return CFrame.lookAt(position, position + Vector3.new(look.X, 0, -look.Z))
 end
 
-function MapKit.mirrorCover(list: { Cover }, center: Vector3)
+function MapKit.mirror<T>(list: { T }, center: Vector3)
 	for i = 1, #list do
-		local c = table.clone(list[i])
-		c.origin = reflected(c.origin, center)
-		table.insert(list, c)
-	end
-end
-
-function MapKit.mirrorBuildings(list: { Building }, center: Vector3)
-	for i = 1, #list do
-		local b = table.clone(list[i])
-		b.origin = reflected(b.origin, center)
-		table.insert(list, b)
-	end
-end
-
-function MapKit.mirrorProps(list: { Prop }, center: Vector3)
-	for i = 1, #list do
-		local p = table.clone(list[i])
-		p.origin = reflected(p.origin, center)
-		table.insert(list, p)
+		local copy: any = table.clone(list[i] :: any)
+		copy.origin = reflected(copy.origin, center)
+		table.insert(list, copy)
 	end
 end
 
@@ -173,6 +220,32 @@ end
 -- A block of hard cover.
 function MapKit.block(list: { Cover }, x: number, z: number, size: Vector3, color: Color3, material: Enum.Material?, yawDegrees: number?)
 	table.insert(list, { size = size, origin = MapKit.at(x, z, yawDegrees), color = color, material = material })
+end
+
+function MapKit.patch(list: { Patch }, look: PatchLook, x: number, z: number, w: number, d: number, yawDegrees: number?)
+	table.insert(list, { look = look, size = Vector2.new(w, d), origin = MapKit.at(x, z, yawDegrees) })
+end
+
+function MapKit.minefield(list: { Minefield }, x: number, z: number, w: number, d: number, count: number, seed: number)
+	table.insert(list, { size = Vector2.new(w, d), origin = MapKit.at(x, z), count = count, seed = seed })
+end
+
+function MapKit.hill(list: { Hill }, x: number, z: number, radius: number, height: number)
+	-- Steepest slope of the bump is height * pi / (2 * radius); keep it drivable.
+	assert(height * math.pi / (2 * radius) <= math.tan(Config.Maps.MaxRampAngle) + 1e-3, "hill too steep")
+	table.insert(list, { origin = MapKit.at(x, z), radius = radius, height = height })
+end
+
+-- Bridge along Z over water: a low deck with ramps at both ends and breakable rails.
+-- Returns the crossing (both approach points) for bots.
+function MapKit.bridge(cover: { Cover }, props: { Prop }, x: number, z: number, width: number, span: number): { Vector3 }
+	local h = 3
+	local wood = Color3.fromRGB(150, 110, 75)
+	MapKit.plateau(cover, x, z, width, span, h, { "S", "N" }, wood)
+	MapKit.fence(props, x - width / 2 + 1, z - span / 2, x - width / 2 + 1, z + span / 2)
+	MapKit.fence(props, x + width / 2 - 1, z - span / 2, x + width / 2 - 1, z + span / 2)
+	local reach = span / 2 + h / math.tan(Config.Maps.MaxRampAngle) + 8
+	return { Vector3.new(x, 0, z - reach), Vector3.new(x, 0, z + reach) }
 end
 
 -- Free-standing destructible wall: `length` chunks long, `rows` chunks high. It runs along
