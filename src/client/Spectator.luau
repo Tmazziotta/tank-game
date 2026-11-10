@@ -81,15 +81,27 @@ local function update()
 	watch(if #list > 0 then list[cycle % #list + 1] else nil)
 end
 
+-- Watch the next living teammate (E key, or the touch NEXT button).
+function Spectator.next()
+	if not watching then
+		return
+	end
+	cycle += 1
+	local list = candidates()
+	if #list > 0 then
+		watch(list[cycle % #list + 1])
+	end
+end
+
+function Spectator.isWatching(): boolean
+	return watching ~= nil
+end
+
 function Spectator.start()
 	RunService.RenderStepped:Connect(update)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		if not processed and input.KeyCode == Enum.KeyCode.E and watching then
-			cycle += 1
-			local list = candidates()
-			if #list > 0 then
-				watch(list[cycle % #list + 1])
-			end
+		if not processed and input.KeyCode == Enum.KeyCode.E then
+			Spectator.next()
 		end
 	end)
 end

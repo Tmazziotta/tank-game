@@ -6,6 +6,8 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
+local TouchInput = require(script.Parent.TouchInput)
+
 local Hud = {}
 
 local READY_COLOR = Color3.fromRGB(120, 230, 140)
@@ -164,7 +166,7 @@ function Hud.setReload(progress: number)
 	fill.Size = UDim2.fromScale(math.clamp(progress, 0, 1), 1)
 	fill.BackgroundColor3 = if ready then READY_COLOR else RELOAD_COLOR
 	barrelStroke.Color = fill.BackgroundColor3
-	label.Text = if ready then "READY - CLICK TO FIRE" else "RELOADING"
+	label.Text = if ready then (if TouchInput.isTouchDevice() then "READY" else "READY - CLICK TO FIRE") else "RELOADING"
 end
 
 function Hud.setHealth(health: number, maxHealth: number)

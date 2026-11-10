@@ -1,7 +1,8 @@
 --!strict
 -- Drives the local player's tank. The client owns the tank's physics, so setting the
--- constraint targets locally is what moves it. W/S throttle, A/D rotate the hull, and the
--- turret (yaw) and barrel (pitch) hinge motors steer toward the mouse at capped speeds.
+-- constraint targets locally is what moves it. W/S throttle, A/D rotate the hull (or the
+-- on-screen joystick on touch devices), and the turret (yaw) and barrel (pitch) hinge
+-- motors steer toward the screen-center crosshair at capped speeds.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +14,7 @@ local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local AimTarget = require(script.Parent.AimTarget)
 local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
 local TankCamera = require(script.Parent.TankCamera)
+local TouchInput = require(script.Parent.TouchInput)
 
 export type TankRefs = TankDrive.Refs
 
@@ -50,7 +52,11 @@ local function step(dt: number)
 		return
 	end
 	aim(tank)
-	TankDrive.drive(tank, axis(Enum.KeyCode.W, Enum.KeyCode.S), axis(Enum.KeyCode.D, Enum.KeyCode.A), dt)
+	-- Keyboard and the on-screen joystick both drive; whichever is in use wins.
+	local touchThrottle, touchTurn = TouchInput.getDrive()
+	local throttle = math.clamp(axis(Enum.KeyCode.W, Enum.KeyCode.S) + touchThrottle, -1, 1)
+	local turn = math.clamp(axis(Enum.KeyCode.D, Enum.KeyCode.A) + touchTurn, -1, 1)
+	TankDrive.drive(tank, throttle, turn, dt)
 end
 
 local function unbind()

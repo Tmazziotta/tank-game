@@ -87,6 +87,16 @@ local function updateHealth(model: Model)
 	end
 end
 
+-- 0..1 reload progress of the local tank's gun (1 = ready).
+function WeaponClient.reloadProgress(): number
+	return reloadProgress()
+end
+
+-- Fire if possible (used by the touch FIRE button; held = keeps trying as reload completes).
+function WeaponClient.fire()
+	tryFire()
+end
+
 function WeaponClient.start()
 	Hud.mount()
 	ShotEffects.mount()

@@ -96,6 +96,13 @@ local function update()
 	end
 end
 
+-- Toggle the scope if driving (used by the touch SCOPE button).
+function Scope.toggle()
+	if TankController.getTank() and not MouseLock.isReleased() then
+		set(not TankCamera.isScoped())
+	end
+end
+
 function Scope.start()
 	gui.Parent = localPlayer:WaitForChild("PlayerGui")
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
@@ -103,9 +110,7 @@ function Scope.start()
 			return
 		end
 		if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-			if TankController.getTank() and not MouseLock.isReleased() then
-				set(not TankCamera.isScoped())
-			end
+			Scope.toggle()
 		end
 	end)
 	RunService.RenderStepped:Connect(update)

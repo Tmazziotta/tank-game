@@ -13,6 +13,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local MouseLock = require(script.Parent.MouseLock)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local ProfileClient = require(script.Parent.ProfileClient)
+local TouchInput = require(script.Parent.TouchInput)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
@@ -230,11 +231,15 @@ local function pips(level: number): string
 	return string.rep("●", level) .. string.rep("○", Config.Upgrades.MaxLevel - level)
 end
 
+local function closeHint(): string
+	return if TouchInput.isTouchDevice() then "Tap GARAGE to close" else "[C] close"
+end
+
 local function hint(): string
 	local phase = ReplicatedStorage:GetAttribute(RoundSchema.PhaseAttribute)
 	return if phase == "PreRound" or phase == "Waiting"
-		then "Changes apply now.   [C] close"
-		else "Changes apply next round.   [C] close"
+		then `Changes apply now.   {closeHint()}`
+		else `Changes apply next round.   {closeHint()}`
 end
 
 local function render()
@@ -392,6 +397,19 @@ local function onPhase()
 	end
 end
 
+-- Open or close the garage (C key, or the touch GARAGE button).
+function GarageMenu.toggle()
+	if gui.Enabled then
+		close()
+	else
+		open(false)
+	end
+end
+
+function GarageMenu.isOpen(): boolean
+	return gui.Enabled
+end
+
 function GarageMenu.start()
 	gui.Parent = localPlayer:WaitForChild("PlayerGui")
 	local firstSync = true
@@ -410,11 +428,7 @@ function GarageMenu.start()
 			return
 		end
 		if input.KeyCode == Enum.KeyCode.C then
-			if gui.Enabled then
-				close()
-			else
-				open(false)
-			end
+			GarageMenu.toggle()
 		end
 	end)
 	ReplicatedStorage:GetAttributeChangedSignal(RoundSchema.PhaseAttribute):Connect(onPhase)

@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapSchema = require(ReplicatedStorage.Shared.MapSchema)
 local MouseLock = require(script.Parent.MouseLock)
+local TouchInput = require(script.Parent.TouchInput)
 local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
 
 local TankCamera = {}
@@ -110,11 +111,13 @@ function TankCamera.bind(tank: TankDrive.Refs)
 		-- Mouse look. Re-assert the lock every frame (focus changes can release it), unless a
 		-- menu has the cursor.
 		MouseLock.apply(true)
+		local touchLook = TouchInput.takeLook() -- always drained, so menu-time drags don't pile up
 		if not MouseLock.isReleased() then
-			local delta = UserInputService:GetMouseDelta()
-			local sensitivity = cfg.MouseSensitivity / (if scoped then cfg.ScopeZoom else 1)
-			yaw -= delta.X * sensitivity
-			pitch = math.clamp(pitch - delta.Y * sensitivity, cfg.MinPitch, cfg.MaxPitch)
+			local zoom = if scoped then cfg.ScopeZoom else 1
+			local delta = UserInputService:GetMouseDelta() * (cfg.MouseSensitivity / zoom)
+				+ touchLook * (cfg.TouchSensitivity / zoom)
+			yaw -= delta.X
+			pitch = math.clamp(pitch - delta.Y, cfg.MinPitch, cfg.MaxPitch)
 		end
 
 		if scoped then

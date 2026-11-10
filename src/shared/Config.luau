@@ -25,6 +25,7 @@ local Config = {
 	Camera = {
 		-- Mouse-look orbit around the tank; the screen center is the aim point.
 		MouseSensitivity = math.rad(0.25), -- radians of camera turn per pixel of mouse movement
+		TouchSensitivity = math.rad(0.3), -- radians per pixel of look-drag on touch screens
 		DefaultPitch = math.rad(-10), -- negative = looking down
 		MinPitch = math.rad(-40),
 		MaxPitch = math.rad(15),
