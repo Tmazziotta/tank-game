@@ -1,10 +1,13 @@
 --!strict
--- Cosmetic shot visuals (tracer, muzzle flash, impact burst), rendered locally on each
--- client from the server's ShotFired broadcast. No gameplay effect.
+-- Cosmetic shot visuals, rendered locally on each client: muzzle flash and a glowing shell
+-- flying the same arc as the server's (ShellFired), then the impact burst when the server
+-- reports where it landed (ShotFired). No gameplay effect.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Config = require(ReplicatedStorage.Shared.Config)
 
@@ -104,8 +107,58 @@ local function impact(position: Vector3, radius: number, sparkCount: number)
 	end)
 end
 
+-- Shells in flight, by id.
+type Flight = { part: BasePart, origin: Vector3, velocity: Vector3, launched: number }
+local flights: { [number]: Flight } = {}
+
+local function makeShell(origin: Vector3): BasePart
+	local shell = effectPart(Enum.PartType.Ball, Vector3.one * 0.8, CFrame.new(origin), TRACER_COLOR)
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, 0.3, 0)
+	a0.Parent = shell
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -0.3, 0)
+	a1.Parent = shell
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Lifetime = 0.15
+	trail.Color = ColorSequence.new(TRACER_COLOR)
+	trail.LightEmission = 1
+	trail.Transparency = NumberSequence.new(0.2, 1)
+	trail.FaceCamera = true
+	trail.Parent = shell
+	return shell
+end
+
+local function stepFlights()
+	local now = os.clock()
+	local maxTime = Ballistics.maxFlightTime()
+	for id, flight in flights do
+		local t = now - flight.launched
+		if t > maxTime + 0.5 then
+			flight.part:Destroy()
+			flights[id] = nil
+		else
+			flight.part.CFrame = CFrame.new(Ballistics.positionAt(flight.origin, flight.velocity, t))
+		end
+	end
+end
+
 function ShotEffects.mount()
 	folder.Parent = workspace
+	RunService.RenderStepped:Connect(stepFlights)
+end
+
+-- A shell left a barrel.
+function ShotEffects.launch(launch: CombatTypes.ShellLaunch)
+	muzzleFlash(launch.origin)
+	flights[launch.id] = {
+		part = makeShell(launch.origin),
+		origin = launch.origin,
+		velocity = launch.velocity,
+		launched = os.clock(),
+	}
 end
 
 -- A small bright flash where a shell glanced off or splashed on a shield.
@@ -114,15 +167,21 @@ local function glance(position: Vector3, color: Color3)
 	fadeOut(flash, 0.25, { Size = Vector3.one * 5 })
 end
 
-function ShotEffects.play(report: CombatTypes.ShotReport)
-	muzzleFlash(report.origin)
-	tracer(report.origin, report.hit)
+-- A shell landed (or ran out of range).
+function ShotEffects.land(report: CombatTypes.ShotReport)
+	local flight = flights[report.id]
+	local incoming = (report.hit - report.origin).Unit
+	if flight then
+		flights[report.id] = nil
+		local t = os.clock() - flight.launched
+		incoming = Ballistics.velocityAt(flight.velocity, t).Unit
+		flight.part:Destroy()
+	end
 	local kind = report.kind
 	if kind == "World" or kind == "Hit" then
 		impact(report.hit, report.radius, 30)
 	elseif kind == "Ricochet" then
 		glance(report.hit, SPARK_COLOR)
-		local incoming = (report.hit - report.origin).Unit
 		local normal = report.normal or -incoming
 		local bounced = incoming - 2 * incoming:Dot(normal) * normal
 		tracer(report.hit, report.hit + bounced * 30)

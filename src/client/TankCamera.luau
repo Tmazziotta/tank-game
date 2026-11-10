@@ -3,6 +3,8 @@
 -- around the tank (yaw + pitch), independent of the hull, so you drive with WASD and aim
 -- with the mouse. The screen center is the aim point; the turret follows it. The camera
 -- follows the hull's position smoothly, pulls back with speed, and pulls in to avoid walls.
+-- Scoped (see Scope): the camera sits on the turret with a narrow field of view and a
+-- proportionally slower mouse, and your own tank is hidden so it doesn't block the view.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,6 +26,35 @@ local yaw = 0 -- world yaw, radians (0 = looking toward -Z)
 local pitch = 0
 local smoothedFocus: Vector3? = nil
 local smoothedDistance: number? = nil
+local scoped = false
+local boundModel: Model? = nil
+
+-- Hide (or show) the bound tank and the local character, for the scope view.
+local function setTankHidden(hidden: boolean)
+	local value = if hidden then 1 else 0
+	for _, root in { boundModel, Players.LocalPlayer.Character } do
+		if root then
+			for _, part in root:GetDescendants() do
+				if part:IsA("BasePart") then
+					part.LocalTransparencyModifier = value
+				end
+			end
+		end
+	end
+end
+
+function TankCamera.isScoped(): boolean
+	return scoped
+end
+
+function TankCamera.setScoped(on: boolean)
+	if not bound or on == scoped then
+		return
+	end
+	scoped = on
+	setTankHidden(on)
+	workspace.CurrentCamera.FieldOfView = Config.Camera.FieldOfView / (if on then Config.Camera.ScopeZoom else 1)
+end
 
 local function flatYaw(cf: CFrame): number
 	local look = cf.LookVector
@@ -58,6 +89,7 @@ end
 function TankCamera.bind(tank: TankDrive.Refs)
 	TankCamera.unbind()
 	local hull = tank.hull
+	local turret = tank.turret
 	local spec = tank.spec
 	local camera = workspace.CurrentCamera
 	camera.CameraType = Enum.CameraType.Scriptable
@@ -67,6 +99,7 @@ function TankCamera.bind(tank: TankDrive.Refs)
 	smoothedFocus = nil
 	smoothedDistance = nil
 	bound = true
+	boundModel = tank.model
 
 	RunService:BindToRenderStep(BIND_NAME, Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 		if not hull.Parent then
@@ -79,8 +112,15 @@ function TankCamera.bind(tank: TankDrive.Refs)
 		MouseLock.apply(true)
 		if not MouseLock.isReleased() then
 			local delta = UserInputService:GetMouseDelta()
-			yaw -= delta.X * cfg.MouseSensitivity
-			pitch = math.clamp(pitch - delta.Y * cfg.MouseSensitivity, cfg.MinPitch, cfg.MaxPitch)
+			local sensitivity = cfg.MouseSensitivity / (if scoped then cfg.ScopeZoom else 1)
+			yaw -= delta.X * sensitivity
+			pitch = math.clamp(pitch - delta.Y * sensitivity, cfg.MinPitch, cfg.MaxPitch)
+		end
+
+		if scoped then
+			local eye = turret.Position + Vector3.yAxis * cfg.ScopeHeight * spec.Scale
+			camera.CFrame = CFrame.new(eye) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+			return
 		end
 
 		-- Pull back with speed so you can see further ahead when moving fast.
@@ -113,8 +153,14 @@ end
 
 function TankCamera.unbind()
 	if bound then
+		if scoped then
+			setTankHidden(false)
+			scoped = false
+			workspace.CurrentCamera.FieldOfView = Config.Camera.FieldOfView
+		end
 		RunService:UnbindFromRenderStep(BIND_NAME)
 		bound = false
+		boundModel = nil
 		MouseLock.apply(false)
 		workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 	end

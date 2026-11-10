@@ -8,7 +8,9 @@ local folder = ReplicatedStorage:WaitForChild("Remotes")
 return {
 	-- client -> server: no arguments; the server decides everything from its own state.
 	FireRequest = folder:WaitForChild("FireRequest") :: RemoteEvent,
-	-- server -> all clients: (shooter: Player? (nil for bots), report: CombatTypes.ShotReport)
+	-- server -> all clients: (shooter: Player? (nil for bots), launch: CombatTypes.ShellLaunch)
+	ShellFired = folder:WaitForChild("ShellFired") :: RemoteEvent,
+	-- server -> all clients, when a shell lands: (shooter: Player?, report: CombatTypes.ShotReport)
 	ShotFired = folder:WaitForChild("ShotFired") :: RemoteEvent,
 	-- client -> server: (action: "Buy" | "Upgrade" | "Select", tankId: string, track: string?)
 	-- returns (ok: boolean, message: string?). Validated against saved data and Config.

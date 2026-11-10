@@ -9,6 +9,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
 local BuildingGenerator = require(script.Parent.BuildingGenerator)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -278,11 +279,14 @@ function BotBrain.step(brain: Brain, dt: number)
 
 	-- Aim: at the target (with scatter), else straight ahead.
 	local targetHull = brain.targetHull
+	-- Lead the target for shell travel time and raise the barrel for drop.
+	local muzzlePosition = brain.refs.muzzle.WorldPosition
 	local aimPoint = if targetHull and targetHull.Parent
-		then targetHull.Position + brain.aimOffset
+		then Ballistics.lead(muzzlePosition, targetHull.Position, targetHull.AssemblyLinearVelocity) + brain.aimOffset
 		else hull.Position + hull.CFrame.LookVector * 50 + Vector3.yAxis * 3
-	TankDrive.aim(brain.refs, aimPoint)
-	fireIfReady(brain, now, aimPoint, params)
+	local barrelPoint = Ballistics.compensate(muzzlePosition, aimPoint)
+	TankDrive.aim(brain.refs, barrelPoint)
+	fireIfReady(brain, now, barrelPoint, params)
 
 	-- Drive.
 	local throttle, turn

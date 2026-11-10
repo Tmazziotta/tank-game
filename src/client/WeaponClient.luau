@@ -1,14 +1,15 @@
 --!strict
 -- Fire input and reload state. Clicking only *requests* a shot; the reload timer starts
--- when the server confirms it via ShotFired, so the HUD reflects what really happened.
+-- when the server confirms the launch via ShellFired, so the HUD reflects what really
+-- happened. Hit feedback arrives with ShotFired when the shell lands.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
-local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local Hud = require(script.Parent.Hud)
@@ -58,9 +59,10 @@ local function barrelScreenPoint(): Vector2?
 		table.insert(ignore, localPlayer.Character :: Model)
 	end
 	params.FilterDescendantsInstances = ignore
-	local direction = muzzle.LookVector * Config.Weapon.Range
-	local result = workspace:Raycast(muzzle.Position, direction, params)
-	local point = if result then result.Position else muzzle.Position + direction
+	-- Where a shell fired now would land, following its drop.
+	local velocity = Ballistics.launchVelocity(muzzle.LookVector)
+	local result = Ballistics.trace(muzzle.Position, velocity, params)
+	local point = if result then result.Position else Ballistics.positionAt(muzzle.Position, velocity, Ballistics.maxFlightTime())
 	local screen, onScreen = workspace.CurrentCamera:WorldToViewportPoint(point)
 	return if onScreen then Vector2.new(screen.X, screen.Y) else nil
 end
@@ -95,10 +97,16 @@ function WeaponClient.start()
 		end
 	end)
 
-	Remotes.ShotFired.OnClientEvent:Connect(function(shooter: Player, report: CombatTypes.ShotReport)
-		ShotEffects.play(report)
+	Remotes.ShellFired.OnClientEvent:Connect(function(shooter: Player?, launch: CombatTypes.ShellLaunch)
+		ShotEffects.launch(launch)
 		if shooter == localPlayer then
 			lastConfirmed = os.clock()
+		end
+	end)
+
+	Remotes.ShotFired.OnClientEvent:Connect(function(shooter: Player?, report: CombatTypes.ShotReport)
+		ShotEffects.land(report)
+		if shooter == localPlayer then
 			showShotResult(report)
 		elseif report.victim == localPlayer and report.kind == "Hit" then
 			local tank = TankController.getTank()

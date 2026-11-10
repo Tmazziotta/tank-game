@@ -6,6 +6,7 @@
 export type ShotKind = "Miss" | "World" | "Hit" | "Ricochet" | "Shielded"
 
 export type ShotReport = {
+	id: number, -- the shell (matches ShellLaunch.id)
 	origin: Vector3,
 	hit: Vector3,
 	kind: ShotKind,
@@ -14,6 +15,13 @@ export type ShotReport = {
 	damage: number?, -- damage dealt (Hit only)
 	zone: string?, -- "Front" | "Side" | "Rear" (tank hits only)
 	victim: Player?, -- player driving the tank that was struck (nil for bots)
+}
+
+-- A shell leaving the barrel; clients fly a visual along the same path.
+export type ShellLaunch = {
+	id: number,
+	origin: Vector3,
+	velocity: Vector3,
 }
 
 export type DestroyedReport = {

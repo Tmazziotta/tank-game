@@ -11,6 +11,7 @@ local UserInputService = game:GetService("UserInputService")
 local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local AimTarget = require(script.Parent.AimTarget)
+local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
 local TankCamera = require(script.Parent.TankCamera)
 
 export type TankRefs = TankDrive.Refs
@@ -38,7 +39,9 @@ local function aim(tank: TankRefs)
 	if character then
 		table.insert(ignore, character)
 	end
-	TankDrive.aim(tank, AimTarget.getPoint(ignore, tank.muzzle.WorldPosition.Y))
+	-- Raise the barrel for shell drop so a shell lands on the crosshair (lead is up to you).
+	local target = AimTarget.getPoint(ignore, tank.muzzle.WorldPosition.Y)
+	TankDrive.aim(tank, Ballistics.compensate(tank.muzzle.WorldPosition, target))
 end
 
 local function step(dt: number)

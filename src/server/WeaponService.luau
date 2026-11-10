@@ -1,12 +1,16 @@
 --!strict
 -- Server-authoritative firing. The client only asks to fire; the server checks the
--- cooldown, raycasts from its own copy of the barrel, resolves armor against any tank it
--- hits, applies the impact, and tells every client what happened so they can draw it.
+-- cooldown and launches a shell from its own copy of the barrel. Shells fly (Ballistics:
+-- speed + drop), stepped every frame with raycasts; on impact the server resolves armor
+-- against any tank hit, applies the blast, and tells every client so they can draw it.
+-- ShellFired (launch) lets clients animate the shell; ShotFired (impact) carries the result.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Armor = require(script.Parent.Armor)
+local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -22,6 +26,21 @@ local WeaponService = {}
 local lastFired: { [Combatant.Combatant]: number } = setmetatable({}, { __mode = "k" }) :: any
 local impactHandler: ImpactHandler? = nil
 local enabled = true
+
+type Shell = {
+	id: number,
+	shooter: Combatant.Combatant,
+	origin: Vector3,
+	velocity: Vector3, -- at launch
+	age: number, -- seconds in flight
+	damage: number,
+	radius: number,
+	params: RaycastParams,
+}
+
+local shells: { Shell } = {}
+local nextShellId = 0
+local land: (shell: Shell, result: RaycastResult, direction: Vector3) -> ()
 
 local function isTurretPart(tank: TankBuilder.Tank, part: BasePart): boolean
 	local root = part.AssemblyRootPart
@@ -63,6 +82,29 @@ local function hitTank(
 	return true
 end
 
+-- A shell struck something: resolve armor against any tank, apply the impact, and tell
+-- every client.
+function land(shell: Shell, result: RaycastResult, direction: Vector3)
+	local report: CombatTypes.ShotReport = {
+		id = shell.id,
+		origin = shell.origin,
+		hit = result.Position,
+		kind = "World",
+		radius = shell.radius,
+	}
+	local victim = TankHealth.findTank(result.Instance)
+	local part = result.Instance
+	local explodes = true
+	if victim and part:IsA("BasePart") then
+		explodes = hitTank(report, victim, part, direction, result.Normal, shell.damage, shell.shooter)
+	end
+	local onImpact = impactHandler
+	if explodes and onImpact then
+		onImpact(report.hit, shell.radius, shell.shooter)
+	end
+	Remotes.ShotFired:FireAllClients(shell.shooter.player, report)
+end
+
 -- Fire `tank`'s gun on behalf of `shooter`, if its reload is done. Returns whether it fired.
 function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Combatant): boolean
 	if not enabled then
@@ -80,10 +122,9 @@ function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Comba
 
 	local muzzle = tank.muzzle.WorldCFrame
 	local direction = muzzle.LookVector
-	-- Start behind the muzzle so a barrel poking through a wall still hits that wall.
-	local rayOrigin = muzzle.Position - direction * Config.Weapon.RayBackOffset
+	local velocity = Ballistics.launchVelocity(direction)
 
-	-- Shells pass through drivers' bodies and strike the tank they sit in.
+	-- Shells pass through drivers' bodies and their own tank.
 	local exclude: { Instance } = { tank.model }
 	for _, other in Players:GetPlayers() do
 		if other.Character then
@@ -93,30 +134,54 @@ function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Comba
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = exclude
-	local result = workspace:Raycast(rayOrigin, direction * (Config.Weapon.Range + Config.Weapon.RayBackOffset), params)
 
-	local report: CombatTypes.ShotReport = {
+	nextShellId += 1
+	local shell: Shell = {
+		id = nextShellId,
+		shooter = shooter,
 		origin = muzzle.Position,
-		hit = if result then result.Position else muzzle.Position + direction * Config.Weapon.Range,
-		kind = "Miss",
+		velocity = velocity,
+		age = 0,
+		damage = tank.spec.Damage, -- snapshot: the tank may be gone before the shell lands
 		radius = tank.spec.BlastRadius,
+		params = params,
 	}
+	-- First segment starts behind the muzzle so a barrel poking through a wall still hits it.
+	local backOrigin = muzzle.Position - direction * Config.Weapon.RayBackOffset
+	local result = workspace:Raycast(backOrigin, direction * Config.Weapon.RayBackOffset, params)
 	if result then
-		local victim = TankHealth.findTank(result.Instance)
-		local part = result.Instance
-		local explodes = true
-		if victim and part:IsA("BasePart") then
-			explodes = hitTank(report, victim, part, direction, result.Normal, tank.spec.Damage, shooter)
-		else
-			report.kind = "World"
-		end
-		local onImpact = impactHandler
-		if explodes and onImpact then
-			onImpact(report.hit, tank.spec.BlastRadius, shooter)
+		land(shell, result, direction)
+	else
+		table.insert(shells, shell)
+	end
+	Remotes.ShellFired:FireAllClients(shooter.player, { id = shell.id, origin = shell.origin, velocity = velocity })
+	return true
+end
+
+-- Advance every shell in flight; resolve the ones that hit something or run out of range.
+local function stepShells(dt: number)
+	local maxTime = Ballistics.maxFlightTime()
+	for i = #shells, 1, -1 do
+		local shell = shells[i]
+		local from = Ballistics.positionAt(shell.origin, shell.velocity, shell.age)
+		shell.age = math.min(shell.age + dt, maxTime)
+		local to = Ballistics.positionAt(shell.origin, shell.velocity, shell.age)
+		local result = workspace:Raycast(from, to - from, shell.params)
+		if result then
+			table.remove(shells, i)
+			land(shell, result, (to - from).Unit)
+		elseif shell.age >= maxTime then
+			table.remove(shells, i)
+			local report: CombatTypes.ShotReport = {
+				id = shell.id,
+				origin = shell.origin,
+				hit = to,
+				kind = "Miss",
+				radius = shell.radius,
+			}
+			Remotes.ShotFired:FireAllClients(shell.shooter.player, report)
 		end
 	end
-	Remotes.ShotFired:FireAllClients(shooter.player, report)
-	return true
 end
 
 -- A player asked to fire: only allowed while alive and seated in their own tank.
@@ -142,6 +207,7 @@ function WeaponService.start(onImpact: ImpactHandler)
 	impactHandler = onImpact
 	-- Any arguments a client sends are ignored on purpose.
 	Remotes.FireRequest.OnServerEvent:Connect(onFireRequest)
+	RunService.Heartbeat:Connect(stepShells)
 end
 
 return WeaponService

@@ -35,14 +35,20 @@ local Config = {
 		SpeedPullback = 8, -- extra distance at full forward speed
 		SizeFollow = 0.5, -- 0 = same camera for every class, 1 = scales fully with tank size
 		FieldOfView = 70,
+		-- Scope (Shift toggles): camera on the turret, zoomed, slower mouse.
+		ScopeZoom = 4, -- field of view divided by this; mouse sensitivity too
+		ScopeHeight = 2.5, -- camera height above the turret center (x tank scale)
 	},
 
 	Weapon = {
-		Range = 600,
+		Range = 900, -- max shell flight distance
+		ShellSpeed = 500, -- studs/s: shells take time to arrive, so lead moving targets at range
+		ShellGravity = 20, -- studs/s^2 drop; aim is auto-compensated for stationary targets
+		ShellStep = 0.1, -- seconds per segment when tracing a predicted path (barrel marker)
 		RayBackOffset = 8, -- ray starts this far behind the muzzle so point-blank walls still register
 		BlastImpulse = 90, -- velocity change (studs/s) given to chunks at the blast center
 		BlastUpwardBias = 0.5,
-		TracerLifetime = 0.18,
+		TracerLifetime = 0.18, -- ricochet streak
 	},
 
 	Destruction = {
@@ -286,7 +292,7 @@ local Config = {
 		MaxRounds = 5, -- ...or most round wins after this many rounds (draws can stall)
 		FirstPreRound = 12, -- countdown before round 1 (tanks frozen, garage open)
 		PreRound = 8, -- countdown before later rounds
-		Duration = 120, -- round time cap; then the team health % tiebreak decides
+		Duration = 180, -- round time cap; then the team health % tiebreak decides
 		RoundOver = 5, -- round result screen
 		MatchOver = 10, -- match result screen
 		LiveInterval = 0.25, -- seconds between team alive/health updates to clients
