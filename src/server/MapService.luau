@@ -31,8 +31,11 @@ local function folder(parent: Instance, name: string): Folder
 	return f
 end
 
-local function block(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material)
-	local part = Instance.new("Part")
+local function block(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material, shape: MapKit.Shape?)
+	local part: BasePart = if shape == "Wedge"
+		then Instance.new("WedgePart")
+		elseif shape == "CornerWedge" then Instance.new("CornerWedgePart")
+		else Instance.new("Part")
 	part.Name = name
 	part.Anchored = true
 	part.Size = size
@@ -51,7 +54,8 @@ local function buildCover(placement: MapKit.Cover, parent: Instance)
 		placement.size,
 		placement.origin * CFrame.new(0, placement.size.Y / 2, 0),
 		placement.color or Config.Maps.CoverColor,
-		placement.material or Enum.Material.SmoothPlastic
+		placement.material or Enum.Material.SmoothPlastic,
+		placement.shape
 	)
 end
 
@@ -94,9 +98,13 @@ local function build(def: MapKit.MapDef)
 		PropBuilder.build(prop.kind, prop.origin, rng, prop.length).Parent = props
 	end
 
+	-- The ground: sized to the map plus a margin, so no map runs off the edge of the world.
 	local baseplate = workspace:FindFirstChild("Baseplate")
 	if baseplate and baseplate:IsA("BasePart") then
+		local margin = Config.Maps.GroundMargin
 		baseplate.Color = def.groundColor
+		baseplate.Size = Vector3.new(2 * (def.halfSize.X + margin), 20, 2 * (def.halfSize.Y + margin))
+		baseplate.CFrame = CFrame.new(def.center.X, -10, def.center.Z)
 	end
 
 	map.Parent = workspace

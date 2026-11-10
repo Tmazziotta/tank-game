@@ -48,7 +48,7 @@ local function makeBillboard(model: Model, hull: BasePart): (BillboardGui, Frame
 	local mine = localPlayer.Team
 	local ally = type(team) == "string" and mine ~= nil and (TeamInfo.get(team) :: any).DisplayName == mine.Name
 	billboard.AlwaysOnTop = ally
-	billboard.MaxDistance = 300
+	billboard.MaxDistance = 600
 	billboard.ResetOnSpawn = false
 
 	local name = Instance.new("TextLabel")

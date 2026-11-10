@@ -1,88 +1,113 @@
 --!strict
--- Town: the original arena. Three buildings of different sizes around an open square,
--- mid-range fights, a warehouse you can drive through. Crates and fences add soft cover.
+-- Town: three routes between the spawns.
+--   West, the park: open lawns, a tree grove and low stone walls. Fast and exposed, long
+--     sightlines for scoped shooting.
+--   Center, the streets: a main street lined with destructible buildings around a central
+--     square. Short sightlines; blast through a shop to open a new angle.
+--   East, the ridge: a raised plateau across the middle of the lane. Whoever holds it sees
+--     down into the streets and the park, and can sit hull-down behind its rocks.
+-- Mirrored across z = 0, so both sides get the same map.
 
 local MapKit = require(script.Parent.Parent.MapKit)
 
 local at = MapKit.at
-local center = Vector3.new(0, 0, 20)
+local center = Vector3.new(0, 0, 0)
+
+local STONE = Color3.fromRGB(160, 155, 150)
+local CONCRETE = Color3.fromRGB(120, 125, 150)
+
+local function building(name: string, x: number, z: number, yaw: number, w: number, d: number, floors: number, color: Color3, roof: Color3, door: number): MapKit.Building
+	return {
+		spec = {
+			name = name,
+			width = w,
+			depth = d,
+			floors = floors,
+			color = color,
+			roofColor = roof,
+			doorWidth = door,
+			doorHeight = 2,
+			windows = true,
+		},
+		origin = at(x, z, yaw),
+	}
+end
+
+-- South half --------------------------------------------------------------------------
+
+local buildings: { MapKit.Building } = {
+	-- Street frontage: doors face the main street (x = 0).
+	building("Shop", -50, -150, -90, 6, 5, 3, Color3.fromRGB(255, 205, 80), Color3.fromRGB(230, 140, 60), 2),
+	building("Hut", 48, -160, 90, 4, 4, 2, Color3.fromRGB(255, 125, 105), Color3.fromRGB(200, 80, 80), 1),
+	building("Warehouse", -52, -70, -90, 8, 6, 3, Color3.fromRGB(110, 175, 255), Color3.fromRGB(70, 110, 200), 3),
+	building("Bakery", 50, -85, 90, 5, 5, 3, Color3.fromRGB(240, 200, 170), Color3.fromRGB(150, 90, 70), 1),
+	-- Park side wall: breakable, opens the park-to-street crossing.
+	MapKit.wall(at(-95, -110, 90), 8, 2, Color3.fromRGB(190, 110, 90)),
+}
+
+local cover: { MapKit.Cover } = {}
+-- Lane dividers: indestructible apartment blocks between the routes, with gaps to cross
+-- (west: either side of the breakable park wall; east: by the ridge ramp).
+local APARTMENT = Color3.fromRGB(175, 165, 190)
+MapKit.block(cover, -100, -175, Vector3.new(26, 18, 40), APARTMENT, Enum.Material.Concrete)
+MapKit.block(cover, -100, -45, Vector3.new(26, 18, 36), APARTMENT, Enum.Material.Concrete)
+MapKit.block(cover, 105, -205, Vector3.new(26, 18, 30), APARTMENT, Enum.Material.Concrete)
+MapKit.block(cover, 105, -150, Vector3.new(26, 18, 40), APARTMENT, Enum.Material.Concrete)
+-- Spawn shields.
+MapKit.block(cover, -60, -190, Vector3.new(20, 6, 5), CONCRETE)
+MapKit.block(cover, 60, -190, Vector3.new(20, 6, 5), CONCRETE)
+-- Park: low stone walls to duck behind (tank-high, so turrets peek over).
+MapKit.block(cover, -185, -135, Vector3.new(34, 4, 4), STONE, Enum.Material.Cobblestone)
+MapKit.block(cover, -150, -60, Vector3.new(4, 4, 30), STONE, Enum.Material.Cobblestone)
+MapKit.block(cover, -215, -40, Vector3.new(26, 4, 4), STONE, Enum.Material.Cobblestone, 20)
+-- Street: parked trucks and planters.
+MapKit.block(cover, 14, -120, Vector3.new(8, 7, 16), CONCRETE, Enum.Material.DiamondPlate)
+MapKit.block(cover, -16, -35, Vector3.new(8, 7, 16), CONCRETE, Enum.Material.DiamondPlate)
+-- Ridge approach: rocks on the lane floor.
+MapKit.rock(cover, 200, -170, Vector3.new(14, 9, 10), 25)
+MapKit.rock(cover, 135, -140, Vector3.new(10, 8, 14), -15)
+MapKit.rock(cover, 222, -140, Vector3.new(12, 10, 12), 40)
 
 local props: { MapKit.Prop } = {}
-MapKit.crates(props, 24, -32, 15)
-MapKit.crates(props, -24, 95, -10)
-MapKit.crates(props, 62, -10, 40)
-MapKit.crates(props, -70, 60, 0)
-MapKit.fence(props, -75, 112, -30, 112)
-MapKit.fence(props, 30, 112, 75, 112)
-MapKit.fence(props, -95, -20, -95, 40)
-for _, p in { { -92, -70 }, { -88, 95 }, { 88, 100 }, { 95, -72 }, { 68, 128 }, { -60, -85 } } do
+MapKit.grove(props, -235, -115, 3, 3, 17, 11)
+MapKit.grove(props, -200, -25, 2, 2, 17, 12)
+MapKit.fence(props, -135, -175, -135, -130)
+MapKit.fence(props, -240, -75, -170, -75)
+MapKit.crates(props, -110, -40, 10)
+MapKit.crates(props, 22, -60, -20)
+MapKit.crates(props, -20, -175, 30)
+MapKit.crates(props, 70, -112, 5)
+for _, p in { { 80, -212 }, { -100, -205 }, { 70, -130 }, { -40, -110 } } do
 	MapKit.tree(props, p[1], p[2])
 end
+
+MapKit.mirrorBuildings(buildings, center)
+MapKit.mirrorCover(cover, center)
+MapKit.mirrorProps(props, center)
+
+-- Center line ----------------------------------------------------------------------------
+
+-- Town square: a fountain block and a monument to fight around.
+MapKit.block(cover, 0, 0, Vector3.new(18, 5, 18), STONE, Enum.Material.Cobblestone)
+MapKit.block(cover, 0, 0, Vector3.new(5, 14, 5), STONE, Enum.Material.Marble)
+-- The ridge: 10 high, ramps from both spawns and from the street side; rocks on top give
+-- hull-down positions at both crests.
+MapKit.plateau(cover, 185, 0, 90, 110, 10, { "S", "N", "W" })
+MapKit.rock(cover, 170, -45, Vector3.new(16, 15, 6), 5)
+MapKit.rock(cover, 200, 45, Vector3.new(16, 15, 6), -5)
+MapKit.rock(cover, 150, 10, Vector3.new(6, 15, 14), 10)
 
 local map: MapKit.MapDef = {
 	id = "Town",
 	displayName = "Town",
 	center = center,
-	halfSize = Vector2.new(110, 122),
+	halfSize = Vector2.new(250, 250),
 	groundColor = Color3.fromRGB(99, 95, 99),
 	boundaryColor = Color3.fromRGB(120, 125, 150),
-	wanderRadius = 90,
-	-- Asymmetric map: teams swap sides every round, so both get each side.
-	sides = {
-		{ MapKit.spawn(0, -60, center), MapKit.spawn(-70, -45, center), MapKit.spawn(70, -45, center) },
-		{ MapKit.spawn(0, 128, center), MapKit.spawn(-85, 120, center), MapKit.spawn(85, 120, center) },
-	},
-	buildings = {
-		{
-			spec = {
-				name = "Hut",
-				width = 4,
-				depth = 4,
-				floors = 3,
-				color = Color3.fromRGB(255, 125, 105),
-				roofColor = Color3.fromRGB(200, 80, 80),
-				doorWidth = 1,
-				doorHeight = 2,
-				windows = true,
-			},
-			origin = at(-45, 5, -25),
-		},
-		{
-			spec = {
-				name = "Shop",
-				width = 6,
-				depth = 5,
-				floors = 4,
-				color = Color3.fromRGB(255, 205, 80),
-				roofColor = Color3.fromRGB(230, 140, 60),
-				doorWidth = 2,
-				doorHeight = 2,
-				windows = true,
-			},
-			origin = at(42, 15, 20),
-		},
-		{
-			spec = {
-				name = "Warehouse",
-				width = 9,
-				depth = 7,
-				floors = 5,
-				color = Color3.fromRGB(110, 175, 255),
-				roofColor = Color3.fromRGB(70, 110, 200),
-				doorWidth = 3, -- wide enough to drive a tank through
-				doorHeight = 2,
-				windows = true,
-			},
-			origin = at(0, 70, 0),
-		},
-	},
-	cover = {
-		{ size = Vector3.new(14, 6, 4), origin = at(-14, -20, 15) },
-		{ size = Vector3.new(4, 6, 12), origin = at(18, -12, -10) },
-		{ size = Vector3.new(10, 5, 10), origin = at(-28, 40, 0) },
-		{ size = Vector3.new(12, 6, 4), origin = at(30, 50, -30) },
-		{ size = Vector3.new(16, 4, 4), origin = at(0, 25, 0) },
-	},
+	wanderRadius = 200,
+	sides = MapKit.sides({ { -40, -218 }, { 0, -225 }, { 40, -218 } }, center),
+	buildings = buildings,
+	cover = cover,
 	props = props,
 }
 

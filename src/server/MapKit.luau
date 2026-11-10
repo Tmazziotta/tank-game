@@ -18,7 +18,12 @@ export type Cover = {
 	origin: CFrame, -- ground-level center
 	color: Color3?,
 	material: Enum.Material?,
+	shape: Shape?, -- default: a box
 }
+
+-- Wedge: a ramp rising toward the origin's +Z. CornerWedge: a pyramid corner peaking over
+-- the origin's local (+X, -Z) corner.
+export type Shape = "Wedge" | "CornerWedge"
 
 export type Prop = {
 	kind: PropBuilder.Kind,
@@ -42,6 +47,8 @@ export type MapDef = {
 
 local MapKit = {}
 
+local GROUND = Color3.fromRGB(150, 140, 120)
+
 -- Ground-level CFrame at (x, z), yawed.
 function MapKit.at(x: number, z: number, yawDegrees: number?): CFrame
 	return CFrame.new(x, 0, z) * CFrame.Angles(0, math.rad(yawDegrees or 0), 0)
@@ -51,6 +58,121 @@ end
 function MapKit.spawn(x: number, z: number, center: Vector3): CFrame
 	local position = Vector3.new(x, 0.1, z)
 	return CFrame.lookAt(position, Vector3.new(center.X, position.Y, center.Z))
+end
+
+-- Ramp of `height` rising toward the origin's +Z, at the steepest angle tanks can climb.
+-- `x, z` is the center of its footprint.
+function MapKit.ramp(x: number, z: number, width: number, height: number, yawDegrees: number, color: Color3?): Cover
+	local length = height / math.tan(Config.Maps.MaxRampAngle)
+	return {
+		size = Vector3.new(width, height, length),
+		origin = MapKit.at(x, z, yawDegrees),
+		color = color or GROUND,
+		material = Enum.Material.Ground,
+		shape = "Wedge",
+	}
+end
+
+export type Side = "N" | "S" | "E" | "W" -- N = +Z, E = +X
+
+-- Raised, indestructible plateau (w along X, d along Z) with ramps on the given sides.
+-- Each ramp spans its whole side, so the shape has no inside corners for tanks to wedge in.
+-- High ground: tanks on top see over cover and can sit back from the edge, showing
+-- only the turret over the crest.
+function MapKit.plateau(list: { Cover }, x: number, z: number, w: number, d: number, h: number, ramps: { Side }, color: Color3?)
+	local c = color or GROUND
+	table.insert(list, { size = Vector3.new(w, h, d), origin = MapKit.at(x, z), color = c, material = Enum.Material.Ground })
+	local length = h / math.tan(Config.Maps.MaxRampAngle)
+	for _, side in ramps do
+		if side == "S" then
+			table.insert(list, MapKit.ramp(x, z - d / 2 - length / 2, w, h, 0, c))
+		elseif side == "N" then
+			table.insert(list, MapKit.ramp(x, z + d / 2 + length / 2, w, h, 180, c))
+		elseif side == "W" then
+			table.insert(list, MapKit.ramp(x - w / 2 - length / 2, z, d, h, 90, c))
+		else
+			table.insert(list, MapKit.ramp(x + w / 2 + length / 2, z, d, h, -90, c))
+		end
+	end
+	-- Where two ramps meet, fill the notch between them with a corner piece that blends
+	-- both slopes (otherwise it's an inside corner tanks get wedged in).
+	local has: { [string]: boolean } = {}
+	for _, side in ramps do
+		has[side] = true
+	end
+	-- { z side, x side, corner x sign, corner z sign, yaw that points the peak inward }
+	local corners: { { any } } = { { "S", "W", -1, -1, -90 }, { "S", "E", 1, -1, 180 }, { "N", "W", -1, 1, 0 }, { "N", "E", 1, 1, 90 } }
+	for _, corner in corners do
+		if has[corner[1]] and has[corner[2]] then
+			local sx: number, sz: number = corner[3], corner[4]
+			table.insert(list, {
+				size = Vector3.new(length, h, length),
+				origin = MapKit.at(x + sx * (w / 2 + length / 2), z + sz * (d / 2 + length / 2), corner[5]),
+				color = c,
+				material = Enum.Material.Ground,
+				shape = "CornerWedge" :: Shape,
+			})
+		end
+	end
+end
+
+-- Rock: a chunky indestructible block, slightly rotated.
+function MapKit.rock(list: { Cover }, x: number, z: number, size: Vector3, yawDegrees: number)
+	table.insert(list, {
+		size = size,
+		origin = MapKit.at(x, z, yawDegrees),
+		color = Color3.fromRGB(140, 140, 150),
+		material = Enum.Material.Slate,
+	})
+end
+
+-- Mirror symmetry: append a copy of every entry reflected across the line z = center.Z,
+-- so both team sides get the same layout (lanes stay on the same X for both teams). Build
+-- the south half, mirror it, then add anything that sits on the center line.
+local function reflected(origin: CFrame, center: Vector3): CFrame
+	local p = origin.Position
+	local look = origin.LookVector
+	local position = Vector3.new(p.X, p.Y, 2 * center.Z - p.Z)
+	return CFrame.lookAt(position, position + Vector3.new(look.X, 0, -look.Z))
+end
+
+function MapKit.mirrorCover(list: { Cover }, center: Vector3)
+	for i = 1, #list do
+		local c = table.clone(list[i])
+		c.origin = reflected(c.origin, center)
+		table.insert(list, c)
+	end
+end
+
+function MapKit.mirrorBuildings(list: { Building }, center: Vector3)
+	for i = 1, #list do
+		local b = table.clone(list[i])
+		b.origin = reflected(b.origin, center)
+		table.insert(list, b)
+	end
+end
+
+function MapKit.mirrorProps(list: { Prop }, center: Vector3)
+	for i = 1, #list do
+		local p = table.clone(list[i])
+		p.origin = reflected(p.origin, center)
+		table.insert(list, p)
+	end
+end
+
+-- Spawns for both sides: `south` are (x, z) points on the -Z side; side 2 mirrors them.
+function MapKit.sides(south: { { number } }, center: Vector3): { { CFrame } }
+	local a, b = {}, {}
+	for _, point in south do
+		table.insert(a, MapKit.spawn(point[1], point[2], center))
+		table.insert(b, MapKit.spawn(point[1], 2 * center.Z - point[2], center))
+	end
+	return { a, b }
+end
+
+-- A block of hard cover.
+function MapKit.block(list: { Cover }, x: number, z: number, size: Vector3, color: Color3, material: Enum.Material?, yawDegrees: number?)
+	table.insert(list, { size = size, origin = MapKit.at(x, z, yawDegrees), color = color, material = material })
 end
 
 -- Free-standing destructible wall: `length` chunks long, `rows` chunks high. It runs along

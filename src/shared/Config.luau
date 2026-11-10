@@ -230,6 +230,8 @@ local Config = {
 		BoundaryHeight = 14, -- indestructible arena walls
 		BoundaryThickness = 4,
 		CoverColor = Color3.fromRGB(95, 105, 140), -- default hard-cover color
+		MaxRampAngle = math.rad(10), -- tanks stall on slopes much past ~15 deg (Heavy worst)
+		GroundMargin = 200, -- baseplate extends this far past the boundary
 	},
 
 	Props = {
@@ -261,8 +263,8 @@ local Config = {
 
 	Bots = {
 		-- Fighting distance: close in beyond MaxRange, back off inside MinRange, circle between.
-		MinRange = 28,
-		MaxRange = 80,
+		MinRange = 35,
+		MaxRange = 150,
 		BackoffMargin = 10, -- once backing off, keep going until MinRange + this
 		OrbitAngle = math.rad(60), -- heading offset from the target while circling (angles the armor)
 		OrbitFlipMin = 4, -- seconds between switching circling direction (random in range)
@@ -273,10 +275,11 @@ local Config = {
 		AimTolerance = math.rad(3), -- fire once the barrel is this close to the aim point
 		BreachRange = 35, -- shoot destructible walls this close when they hide the target
 		RetargetInterval = 0.5,
-		HiddenTargetPenalty = 60, -- studs added to a target's distance when it is out of sight
+		HiddenTargetPenalty = 120, -- studs added to a target's distance when it is out of sight
 		AvoidDistance = 14, -- look-ahead for walls
 		AvoidRadius = 4.5, -- sphere cast radius: about half the tank's width
-		AvoidCommitTime = 1.5, -- keep swerving to the same side this long (follows walls around)
+		AvoidCommitTime = 1.5,
+		WalkableNormalY = 0.9, -- surfaces flatter than ~25 deg (ramps) don't count as walls -- keep swerving to the same side this long (follows walls around)
 		SteerSoftAngle = math.rad(30), -- heading error that gets full turn input
 		StuckSpeed = 1.5, -- below this (studs/s) while driving or turning counts as stuck...
 		StuckSpin = 0.15, -- ...if also turning slower than this (rad/s)

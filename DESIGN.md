@@ -8,7 +8,7 @@ Short-session tank brawler on Roblox. Chunky toy-style tanks fight in small aren
 ## Pillars
 1. **Destruction is tactics, not decoration.** Breaking a wall should open a sightline or a flank.
 2. **Easy to drive, deep to master.** WASD + mouse in 10 seconds; armor angling and positioning reward skill.
-3. **Rounds are short and every life counts.** 3v3 elimination, 2-minute rounds, best of 5. Dying hurts, but the next round is seconds away.
+3. **Rounds are short and every life counts.** 3v3 elimination, rounds of up to 3 minutes, best of 5. Dying hurts, but the next round is seconds away.
 4. **Fair.** Paid items are sidegrades or cosmetics. Never pay-to-win.
 
 ## Core loop
@@ -16,11 +16,21 @@ Fight a best-of-5 match → earn coins/XP → unlock or upgrade tanks (or counte
 
 ## Game rules
 - **Mode (launch):** 3v3 team elimination, best of 5 rounds (first to 3; if draws leave no one at 3 after 5 rounds, most round wins takes it, else a draw). 6-player servers; bots fill empty slots. Replaces the original FFA plan.
-- **Round:** pre-round countdown (garage open, tanks frozen), then up to 2:00. A team wins the round by wiping out the other. At the time cap the team with the higher **team health %** wins (remaining HP / max HP summed over the team, dead tanks count 0); an exact tie or a mutual wipe is a draw.
+- **Round:** pre-round countdown (garage open, tanks frozen), then up to 3:00. A team wins the round by wiping out the other. At the time cap the team with the higher **team health %** wins (remaining HP / max HP summed over the team, dead tanks count 0); an exact tie or a mutual wipe is a draw.
 - **Fairness:** map rebuilt every round; teams swap sides each round; one map per match, rotating between matches. Friendly fire off.
+- **Shooting:** Shells are server-simulated projectiles with travel time and a little drop; lead moving targets at range. **Shift** toggles a fixed 4x scope (camera on the turret, slower mouse) for long shots.
 - **Damage:** Server-authoritative. Front armor > sides > rear. Steep impact angles reduce damage; past ~70° the shell ricochets.
 - **Death:** Explosion, wreck lingers ~5s. No respawn until the next round; you spectate a living teammate.
 - **Map reset:** Full rebuild before each round.
+
+## Maps
+- **Large and route-based** (~500x500 studs, in the spirit of lane-based tank games): every map has three routes between the spawns, separated by hard-cover dividers with gaps to cross between them.
+  - A fast, open flank with long sightlines (scope country).
+  - A close-quarters route through destructible buildings or walls (blast new angles).
+  - A high-ground route: a plateau or hill with ramps that overlooks the others.
+- **Symmetric:** each map is mirrored across the centerline, and teams also swap sides each round.
+- **Slopes:** ramps are at most 10 degrees (tanks stall past ~15). Each ramp spans its plateau's whole side, with corner fills, so there are no inside corners to get stuck in.
+- **Launch maps:** Town (park / streets / ridge), Dockyard (quay / container maze / warehouses + loading dock), Orchard (orchards / open field + hill / village).
 
 ## Destruction rules
 - **Breakable cover:** Pre-fractured buildings and walls; shells knock out chunks in a blast radius.
@@ -61,7 +71,7 @@ Each class gets 2–3 tanks with upgrade tiers (gun, armor, engine).
 | M2 ✅ | Combat: HP, armor angling, death/respawn, FFA round loop | 2-player test has real fights |
 | M3 ✅ | Tank roster: 3 classes, class select at spawn | Each class feels distinct |
 | M4 ✅ | Progression: coins, XP, unlocks, upgrades, ProfileStore saves | Progress survives rejoin |
-| M5 | Maps: 2–3 arenas with crush props and hard-cover skeletons, team-side spawns | Each map plays differently |
+| M5 | Maps: 3 large route-based maps with crush props and hard-cover skeletons, team-side spawns; shell travel + scope for long range | Each map plays differently |
 | M5b | 3v3 best-of-5 elimination mode (teams, spectate, health tiebreak, bot fill) | A full match with bots plays out start to finish |
 | M6 | Polish: UI/HUD, audio, VFX, mobile controls, performance pass | Feels good on phone and PC |
 | M7 | Monetization, lobby/menus, analytics events | First purchase flow works end to end |

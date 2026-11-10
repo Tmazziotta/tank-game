@@ -176,7 +176,9 @@ local function avoidWalls(brain: Brain, heading: Vector3, throttle: number, now:
 	local cfg = Config.Bots
 	local origin = brain.tank.hull.Position + Vector3.yAxis * 1.5
 	local function clear(dir: Vector3): boolean
-		return workspace:Spherecast(origin, cfg.AvoidRadius, dir * cfg.AvoidDistance, params) == nil
+		local hit = workspace:Spherecast(origin, cfg.AvoidRadius, dir * cfg.AvoidDistance, params)
+		-- A ramp's surface is drivable; only steep faces count as walls.
+		return hit == nil or hit.Normal.Y > cfg.WalkableNormalY
 	end
 	if clear(heading) then
 		return heading
