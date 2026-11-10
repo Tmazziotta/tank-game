@@ -80,8 +80,8 @@ Each class gets 2–3 tanks with upgrade tiers (gun, armor, engine).
 | M2 ✅ | Combat: HP, armor angling, death/respawn, FFA round loop | 2-player test has real fights |
 | M3 ✅ | Tank roster: 3 classes, class select at spawn | Each class feels distinct |
 | M4 ✅ | Progression: coins, XP, unlocks, upgrades, ProfileStore saves | Progress survives rejoin |
-| M5 | Maps: 3 large route-based maps with crush props and hard-cover skeletons, team-side spawns; shell travel + scope for long range | Each map plays differently |
-| M5b | 3v3 best-of-5 elimination mode (teams, spectate, health tiebreak, bot fill) | A full match with bots plays out start to finish |
+| M5 ✅ | Maps: 3 large route-based maps with crush props and hard-cover skeletons, team-side spawns; shell travel + scope for long range | Each map plays differently |
+| M5b ✅ | 3v3 best-of-5 elimination mode (teams, spectate, health tiebreak, bot fill) | A full match with bots plays out start to finish |
 | M6 | Polish: UI/HUD, audio, VFX, mobile controls, performance pass | Feels good on phone and PC |
 | M7 | Monetization, lobby/menus, analytics events | First purchase flow works end to end |
 | M8 | Launch: icon, thumbnails, trailer GIF, maturity questionnaire, publish, friends playtest | Live and playable by the public |
