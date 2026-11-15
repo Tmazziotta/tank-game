@@ -163,6 +163,47 @@ function Toy.newBadge(parent: Instance): Frame
 	return badge
 end
 
+-- A row of `count` pips (stat bars); light them with Toy.setPips.
+function Toy.pips(parent: Instance, position: UDim2, count: number, width: number, height: number, gap: number): { Frame }
+	local list = {}
+	for i = 1, count do
+		local pip = Toy.frame(parent, position + UDim2.fromOffset((i - 1) * (width + gap), 0), UDim2.fromOffset(width, height), Toy.Grey)
+		Toy.corner(pip, math.min(6, height // 2))
+		Toy.outline(pip, 2)
+		list[i] = pip
+	end
+	return list
+end
+
+function Toy.setPips(pips: { Frame }, lit: number)
+	for i, pip in pips do
+		pip.BackgroundColor3 = if i <= lit then Toy.Yellow else Toy.Grey
+	end
+end
+
+-- Keep `content` (a fixed-size frame) inside its parent: shrink it (never grow) with a
+-- UIScale whenever the parent's size changes. Call once after parenting.
+function Toy.fit(content: GuiObject)
+	local scale = Instance.new("UIScale")
+	scale.Parent = content
+	local function refit()
+		local parent = content.Parent
+		if not parent or not parent:IsA("GuiObject") or scale.Scale <= 0 then
+			return
+		end
+		local natural = content.AbsoluteSize / scale.Scale
+		if natural.X > 0 and natural.Y > 0 then
+			scale.Scale = math.min(1, parent.AbsoluteSize.X / natural.X, parent.AbsoluteSize.Y / natural.Y)
+		end
+	end
+	local parent = content.Parent
+	if parent and parent:IsA("GuiObject") then
+		parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(refit)
+	end
+	content:GetPropertyChangedSignal("Visible"):Connect(refit)
+	task.defer(refit)
+end
+
 -- Bump every GuiObject under `root` (and root) by `delta` ZIndex levels.
 function Toy.raise(root: GuiObject, delta: number)
 	root.ZIndex += delta

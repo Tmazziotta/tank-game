@@ -20,7 +20,9 @@ local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local TabRail = require(script.Parent.TabRail)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
+local Requests = require(script.Parent.Requests)
 local TankInfoCard = require(script.Parent.TankInfoCard)
+local Toolbox = require(script.Parent.Toolbox)
 local Toy = require(script.Parent.Toy)
 local ToyShelf = require(script.Parent.ToyShelf)
 
@@ -38,7 +40,6 @@ local TOAST_TIME = 4
 local PREVIEW_ATTRIBUTE = "PreviewSize"
 
 local SOON: { [string]: { title: string, blurb: string } } = {
-	Toolbox = { title = "🧰 Toolbox", blurb = "Mod trees: unlock mods that change how each tank plays." },
 	DressUp = { title = "🎩 Dress Up", blurb = "Hats, paint, trails and victory emotes for your tank." },
 	Claw = { title = "🕹️ Claw Machine", blurb = "Daily shop and the claw: grab a random cosmetic." },
 }
@@ -76,8 +77,10 @@ garagePage.Name = "GaragePage"
 local sheet = Toy.panel(root, UDim2.new(), UDim2.new())
 sheet.holder.Name = "Sheet"
 sheet.face.Active = true -- swallow drags so the turntable doesn't spin under the menu
-local shelfPage = Toy.frame(sheet.face, UDim2.fromOffset(0, 12), UDim2.new(1, 0, 1, -12))
+local shelfPage = Toy.frame(sheet.face, UDim2.fromOffset(12, 12), UDim2.new(1, -24, 1, -24))
 shelfPage.Name = "ShelfPage"
+local toolboxPage = Toy.frame(sheet.face, UDim2.fromOffset(12, 12), UDim2.new(1, -24, 1, -24))
+toolboxPage.Name = "ToolboxPage"
 local soonPage = Toy.frame(sheet.face, UDim2.new(), UDim2.fromScale(1, 1))
 local soonTitle = Toy.text(soonPage, "", 44, UDim2.new(0, 0, 0.5, -90), UDim2.new(1, 0, 0, 50))
 local soonChip = Toy.chip(soonPage, "COMING SOON", Toy.Yellow)
@@ -121,12 +124,14 @@ local function layoutSheet()
 	sheet.holder.Size = UDim2.new(1, -left - 16, 1, -TabRail.Top - 16)
 end
 
-local function selectTab(id: string)
+-- Switch tabs; `tankId` picks the tank the Toolbox opens on (default: the one you drive).
+local function selectTab(id: string, tankId: string?)
 	currentTab = id
 	TabRail.setSelected(id)
 	garagePage.Visible = id == "Garage"
 	sheet.holder.Visible = id ~= "Garage"
 	shelfPage.Visible = id == "ToyShelf"
+	toolboxPage.Visible = id == "Toolbox"
 	local soon = SOON[id]
 	soonPage.Visible = soon ~= nil
 	if soon then
@@ -134,7 +139,9 @@ local function selectTab(id: string)
 		soonBlurb.Text = soon.blurb
 	end
 	if id == "ToyShelf" then
-		ToyShelf.mount(shelfPage)
+		ToyShelf.show()
+	elseif id == "Toolbox" then
+		Toolbox.show(tankId)
 	end
 end
 
@@ -228,7 +235,11 @@ function LobbyHud.start()
 		end
 		callback()
 	end)
-	ToyShelf.start()
+	Requests.setToast(LobbyHud.toast)
+	ToyShelf.mount(shelfPage, root, function(tankId: string)
+		selectTab("Toolbox", tankId)
+	end)
+	Toolbox.mount(toolboxPage, LobbyHud.toast)
 	LinePicker.mount(root, LobbyHud.toast)
 	layoutSheet()
 	ProfileClient.changed:Connect(updateNew)
