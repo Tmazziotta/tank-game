@@ -82,6 +82,8 @@ root.AnchorPoint = Vector2.new(0.5, 0)
 root.Position = UDim2.fromScale(0.5, 0)
 root.Size = UDim2.fromOffset(GRID_W + GAP * 2 + PANEL_W, BODY_H + 80)
 root.BackgroundTransparency = 1
+local fitScale = Instance.new("UIScale") -- shrinks the shelf to fit short (phone) screens
+fitScale.Parent = root
 
 local function corner(parent: Instance, radius: number)
 	local c = Instance.new("UICorner")
@@ -117,8 +119,16 @@ local function button(parent: Instance, position: UDim2, dims: UDim2, textSize: 
 	return b
 end
 
-text(root, "TOY SHELF", 32, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 36))
+-- Labels drawn straight on the lobby's cream sheet use its dark-brown ink.
+local INK = Color3.fromHex("#3B2414")
+local INK_SOFT = Color3.fromHex("#8A6A52")
+local function ink(label: TextLabel, color: Color3)
+	label.TextColor3 = color
+	label.TextStrokeTransparency = 1
+end
+ink(text(root, "TOY SHELF", 32, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 36)), INK)
 local status = text(root, "", 18, UDim2.new(0, 0, 1, -26), UDim2.new(1, 0, 0, 24))
+ink(status, INK_SOFT)
 
 -- Grid
 local grid = Instance.new("Frame")
@@ -129,7 +139,7 @@ grid.Parent = root
 
 for col, className in TankClass.order do
 	local header = text(grid, string.upper(TankClass.get(className).DisplayName), 18, UDim2.fromOffset((col - 1) * (TILE_W + GAP), 0), UDim2.fromOffset(TILE_W, 22))
-	header.TextColor3 = MUTED
+	ink(header, INK_SOFT)
 end
 
 type Tile = { button: TextButton, stroke: UIStroke, name: TextLabel, info: TextLabel }
@@ -348,7 +358,26 @@ mainButton.Activated:Connect(function()
 end)
 
 -- Show the shelf inside `parent` (the Toy Shelf tab), focused on the driven tank.
-function ToyShelf.mount(parent: Instance)
+-- Shrink (never grow) the shelf so it fits inside its parent.
+local function fit()
+	local parent = root.Parent
+	if not parent or not parent:IsA("GuiObject") or fitScale.Scale <= 0 then
+		return
+	end
+	local natural = root.AbsoluteSize / fitScale.Scale
+	if natural.X > 0 and natural.Y > 0 then
+		fitScale.Scale = math.min(1, parent.AbsoluteSize.X / natural.X, parent.AbsoluteSize.Y / natural.Y)
+	end
+end
+local fitConnection: RBXScriptConnection? = nil
+
+function ToyShelf.mount(parent: GuiObject)
+	if root.Parent ~= parent then
+		if fitConnection then
+			fitConnection:Disconnect()
+		end
+		fitConnection = parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+	end
 	local data = ProfileClient.get()
 	if data then
 		focused = data.SelectedTank
@@ -356,6 +385,7 @@ function ToyShelf.mount(parent: Instance)
 	root.Parent = parent
 	status.Text = hint()
 	render()
+	task.defer(fit) -- after the layout updates
 end
 
 function ToyShelf.start()

@@ -3,6 +3,7 @@
 -- alongside the Match client in dev mode (see Places).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
 local Places = require(ReplicatedStorage.Shared.Places)
 if not Places.runsGarage() then
@@ -30,6 +31,10 @@ end
 local function onLocation(inGarage: boolean)
 	GarageCamera.setActive(inGarage, scene.center)
 	Turntable.setEnabled(inGarage)
+	-- The garage has its own player card; the match keeps Roblox's player list.
+	pcall(function()
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, not inGarage)
+	end)
 	if inGarage then
 		LobbyHud.setPlayBusy(false)
 		showSelected()

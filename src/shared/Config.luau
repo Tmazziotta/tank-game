@@ -252,6 +252,10 @@ local Config = {
 		CameraLookHeight = 5, -- camera aims this far above the turntable center
 		FieldOfView = 50,
 		LoadoutSlots = 3, -- tanks in the garage carousel (a game pass adds one, later)
+		LockedSlots = 1, -- extra slots shown locked (the game pass), after the real ones
+		-- Placeholder until the toy lines (M10): every current tank belongs to this line.
+		PlaceholderLine = { Name = "Classic", Color = Color3.fromRGB(110, 160, 220) },
+		StatPips = 5, -- pips per stat bar on the tank card
 	},
 
 	Maps = {
