@@ -29,6 +29,7 @@ return {
 	-- client -> server (Garage): no arguments; start a match with the selected tank.
 	-- returns (ok: boolean, message: string?).
 	PlayRequest = folder:WaitForChild("PlayRequest") :: RemoteFunction,
-	-- server -> one client: (message: string) a short notice for the HUD (e.g. teleport failed)
+	-- server -> one client: (message: string, kind: "PlayFailed"?) a short HUD notice; a
+	-- PlayFailed notice also re-enables PLAY
 	Toast = folder:WaitForChild("Toast") :: RemoteEvent,
 }

@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BotService = require(script.Parent.BotService)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
+local Places = require(ReplicatedStorage.Shared.Places)
 local MatchEntry = require(script.Parent.MatchEntry)
 local MatchRoster = require(script.Parent.MatchRoster)
 local Rewards = require(script.Parent.Rewards)
@@ -235,6 +236,7 @@ end
 
 local function loop()
 	local first = true
+	local livePlace = Places.role() == "Match"
 	while true do
 		if not enoughPlayers() then
 			setFrozen(false)
@@ -244,8 +246,19 @@ local function loop()
 				task.wait(1)
 			until enoughPlayers()
 		end
+		if livePlace then
+			-- A reserved Match server: give the rest of the group a moment to arrive.
+			task.wait(Config.Places.MatchGracePeriod)
+		end
 		playMatch(first)
 		first = false
+		if livePlace then
+			-- One match per Match server; players are on their way back to the Garage.
+			setFrozen(false)
+			BotService.clear()
+			setPhase("Waiting")
+			return
+		end
 	end
 end
 

@@ -43,6 +43,7 @@ local store = ProfileStore.New(Config.Data.StoreName, template() :: any)
 
 local profiles: { [Player]: Profile } = {}
 local loadedSignals: { [Player]: BindableEvent } = {}
+local released: { [Player]: boolean } = {} -- sessions we ended on purpose (teleporting)
 
 local function dataOf(profile: Profile): Data
 	return profile.Data :: any
@@ -100,7 +101,8 @@ local function sanitize(data: Data)
 	end
 end
 
-local function onPlayerAdded(player: Player)
+local function load(player: Player)
+	released[player] = nil
 	local profile = store:StartSessionAsync(`Player_{player.UserId}`, {
 		-- Give up if they leave while the load is still waiting on another server's lock.
 		Cancel = function()
@@ -114,8 +116,12 @@ local function onPlayerAdded(player: Player)
 	profile:AddUserId(player.UserId) -- GDPR
 	profile:Reconcile()
 	profile.OnSessionEnd:Connect(function()
-		profiles[player] = nil
-		player:Kick("Your save data was opened on another server. Please rejoin.")
+		if profiles[player] == profile then
+			profiles[player] = nil
+		end
+		if not released[player] and player.Parent == Players then
+			player:Kick("Your save data was opened on another server. Please rejoin.")
+		end
 	end)
 	if player.Parent ~= Players then
 		profile:EndSession()
@@ -135,6 +141,7 @@ end
 local function onPlayerRemoving(player: Player)
 	local profile = profiles[player]
 	profiles[player] = nil
+	released[player] = nil
 	if profile then
 		profile:EndSession()
 	end
@@ -204,6 +211,24 @@ function PlayerData.reset(player: Player): boolean
 	end)
 end
 
+-- Save and end the player's session now, so the server they're teleporting to can load
+-- it straight away. Their data reads as not loaded until `reacquire`.
+function PlayerData.release(player: Player)
+	local profile = profiles[player]
+	if profile then
+		released[player] = true
+		profiles[player] = nil
+		profile:EndSession()
+	end
+end
+
+-- Load the player's session again (a teleport after `release` failed). Yields.
+function PlayerData.reacquire(player: Player)
+	if not profiles[player] and player.Parent == Players then
+		load(player)
+	end
+end
+
 -- Whether saves persist (false in Studio without API access: ProfileStore's mock).
 function PlayerData.isPersistent(): boolean
 	return ProfileStore.DataStoreState == "Access"
@@ -217,10 +242,10 @@ function PlayerData.start()
 		return
 	end
 	started = true
-	Players.PlayerAdded:Connect(onPlayerAdded)
+	Players.PlayerAdded:Connect(load)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
 	for _, player in Players:GetPlayers() do
-		task.spawn(onPlayerAdded, player)
+		task.spawn(load, player)
 	end
 	-- The client asks once its listener is connected, so the first sync is never missed.
 	Remotes.ProfileRequest.OnServerEvent:Connect(sync)

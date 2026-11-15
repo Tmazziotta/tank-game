@@ -229,12 +229,16 @@ local Config = {
 	},
 
 	-- The experience's places. The Garage is the start place; PLAY teleports to a reserved
-	-- Match server. In dev mode (on in Studio, where teleports don't work) one server runs
-	-- both: PLAY moves you into the arena instead.
+	-- Match server. In dev mode (on in Studio, where a teleport would load the *published*
+	-- place rather than your synced code) one server runs both: PLAY moves you into the
+	-- arena instead.
 	Places = {
 		GaragePlaceId = 134500042163643,
 		MatchPlaceId = 117097211658942,
 		DevMode = RunService:IsStudio(),
+		MatchGracePeriod = 5, -- Match place: wait this long after the first arrival before starting
+		TeleportAttempts = 2, -- tries per teleport (one retry), then give up
+		TeleportRetryDelay = 1.5,
 	},
 
 	-- The Garage: a kid's desk with your tank on a cardboard turntable (built per client).

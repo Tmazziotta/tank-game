@@ -21,6 +21,7 @@ local CounterPick = require(script.CounterPick)
 local MapService = require(script.MapService)
 local MineService = require(script.MineService)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
+local Travel = require(ServerScriptService.Core.Travel)
 local PropCrusher = require(script.PropCrusher)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Rewards = require(script.Rewards)
@@ -86,5 +87,10 @@ end)
 
 BotService.start()
 MatchEntry.start()
+if Places.role() == "Match" then
+	-- Live: after the match everyone teleports back to the Garage.
+	Travel.start()
+	MatchEntry.setSendHome(Travel.toGarage)
+end
 MatchRoster.start() -- after TeamService/TankService registered their roster callbacks
 MatchService.start()

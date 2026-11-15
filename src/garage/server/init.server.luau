@@ -15,10 +15,16 @@ local Location = require(ReplicatedStorage.Shared.Location)
 local Hangar = require(ServerScriptService.Core.Hangar)
 local PlayService = require(script.PlayService)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
+local Travel = require(ServerScriptService.Core.Travel)
 
 PlayerData.start()
 Hangar.start()
 PlayService.start()
+if Places.role() == "Garage" then
+	-- Live: PLAY teleports to a reserved Match server (dev mode stays in this server).
+	Travel.start()
+	PlayService.setTravel(Travel.toMatch)
+end
 
 -- Everyone arrives in the Garage.
 local function onPlayerAdded(player: Player)

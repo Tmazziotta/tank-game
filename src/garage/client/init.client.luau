@@ -50,7 +50,12 @@ end)
 GarageGate.start()
 GarageGate.mount(LobbyHud.gui())
 LobbyHud.start()
-Remotes.Toast.OnClientEvent:Connect(LobbyHud.toast)
+Remotes.Toast.OnClientEvent:Connect(function(message: string, kind: string?)
+	LobbyHud.toast(message)
+	if kind == "PlayFailed" then
+		LobbyHud.setPlayBusy(false)
+	end
+end)
 GarageGate.changed:Connect(onLocation)
 ProfileClient.changed:Connect(showSelected)
 ProfileClient.start()
