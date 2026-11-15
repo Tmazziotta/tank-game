@@ -56,7 +56,7 @@ function Turntable.show(tankId: string, mods: { string }?)
 	if display then
 		display:Destroy()
 	end
-	local tank = TankBuilder.build(base, Config.Garage.TankColor, TankCatalog.normalize(tankId), mods)
+	local tank = TankBuilder.build(base, nil, TankCatalog.normalize(tankId), mods)
 	anchorAll(tank.model)
 	displayOffset = base:ToObjectSpace(tank.model:GetPivot())
 	tank.model.Name = "DisplayTank"

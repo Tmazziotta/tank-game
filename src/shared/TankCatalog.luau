@@ -16,7 +16,17 @@ export type Mods = {
 	Armor: number?,
 }
 
+-- How a tank looks: one kit part per slot (see TankLook), styled by its line.
+export type Blueprint = {
+	Tracks: string,
+	Hull: string,
+	Turret: string,
+	Gun: string,
+	Extras: { string },
+}
+
 export type TankDef = {
+	Look: Blueprint?, -- nil = the line + class default (Config.Looks.Defaults)
 	Line: string,
 	Class: string,
 	Tier: number,
@@ -202,12 +212,7 @@ end
 
 -- Equipped mods stored on a tank model.
 function TankCatalog.modsOfModel(model: Instance): { string }
-	-- The toy line of a tank model ("Brick" | "Plush" | "Foam").
-function TankCatalog.lineOfModel(model: Instance): string
-	return TankCatalog.get(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute))).Line
-end
-
-return TankCatalog.decodeMods(model:GetAttribute(TankCatalog.ModsAttribute))
+	return TankCatalog.decodeMods(model:GetAttribute(TankCatalog.ModsAttribute))
 end
 
 -- Behavior mods equipped on a tank model (behavior name -> true).
@@ -224,17 +229,18 @@ end
 
 -- Effective stats of a live tank model, from its attributes.
 function TankCatalog.ofModel(model: Instance): TankClass.Spec
-	-- The toy line of a tank model ("Brick" | "Plush" | "Foam").
-function TankCatalog.lineOfModel(model: Instance): string
-	return TankCatalog.get(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute))).Line
-end
-
-return TankCatalog.spec(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute)), TankCatalog.modsOfModel(model))
+	return TankCatalog.spec(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute)), TankCatalog.modsOfModel(model))
 end
 
 -- The toy line of a tank model ("Brick" | "Plush" | "Foam").
 function TankCatalog.lineOfModel(model: Instance): string
 	return TankCatalog.get(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute))).Line
+end
+
+-- A tank's blueprint: its own Look, else its line + class default.
+function TankCatalog.look(id: string): Blueprint
+	local def = TankCatalog.get(id)
+	return def.Look or (Config.Looks.Defaults :: any)[def.Line][def.Class]
 end
 
 return TankCatalog

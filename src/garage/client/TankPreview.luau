@@ -3,7 +3,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 
@@ -38,7 +37,7 @@ function TankPreview.new(parent: Instance, position: UDim2, size: UDim2): Previe
 			model:Destroy()
 		end
 		-- Facing the camera's left, three-quarter on.
-		local tank = TankBuilder.build(CFrame.Angles(0, math.rad(-35), 0), Config.Garage.TankColor, TankCatalog.normalize(tankId), mods)
+		local tank = TankBuilder.build(CFrame.Angles(0, math.rad(-35), 0), nil, TankCatalog.normalize(tankId), mods)
 		for _, d in tank.model:GetDescendants() do
 			if d:IsA("BasePart") then
 				d.Anchored = true

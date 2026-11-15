@@ -137,6 +137,62 @@ local Config = {
 
 	-- Toy lines (DESIGN.md "Toy lines"). Each line multiplies its tanks' class stats by its
 	-- Mods (same keys as tank Mods below) and has its own behavior-mod library.
+	-- Tank looks (TankLook): each line's palette and materials, and the blueprint a tank uses
+	-- when its Tanks entry has no Look. Blueprint parts: Tracks, Hull, Turret, Gun, Extras.
+	-- The team (or, in the Garage, the line) color goes on a flag and fender stripes.
+	Looks = {
+		Palettes = {
+			Brick = {
+				Main = Color3.fromRGB(214, 72, 52),
+				Second = Color3.fromRGB(245, 190, 40),
+				Trim = Color3.fromRGB(45, 115, 210),
+				Dark = Color3.fromRGB(55, 58, 68),
+				Light = Color3.fromRGB(255, 244, 170),
+				Foam = Color3.fromRGB(245, 190, 40),
+			},
+			Plush = {
+				Main = Color3.fromRGB(236, 150, 190),
+				Second = Color3.fromRGB(252, 232, 214),
+				Trim = Color3.fromRGB(176, 150, 224),
+				Dark = Color3.fromRGB(96, 70, 92),
+				Light = Color3.fromRGB(255, 255, 255),
+				Foam = Color3.fromRGB(252, 232, 214),
+			},
+			Foam = {
+				Main = Color3.fromRGB(255, 150, 40),
+				Second = Color3.fromRGB(60, 130, 230),
+				Trim = Color3.fromRGB(170, 222, 60),
+				Dark = Color3.fromRGB(46, 52, 72),
+				Light = Color3.fromRGB(255, 236, 120),
+				Foam = Color3.fromRGB(255, 120, 30), -- dart tips, bumpers
+			},
+		},
+		Materials = {
+			Brick = Enum.Material.Plastic,
+			Plush = Enum.Material.Fabric,
+			Foam = Enum.Material.SmoothPlastic, -- blaster shell; "Foam" parts use FoamMaterial
+		},
+		FoamMaterial = Enum.Material.Rubber,
+		BrickSeam = 0.08, -- Brick blocks shrink by this so the joins between them show
+		Defaults = {
+			Brick = {
+				Light = { Tracks = "Wheels", Hull = "Slab", Turret = "Box", Gun = "Plain", Extras = { "Antenna" } },
+				Medium = { Tracks = "Treads", Hull = "Slab", Turret = "Box", Gun = "Plain", Extras = {} },
+				Heavy = { Tracks = "Skirted", Hull = "Long", Turret = "Wide", Gun = "Stubby", Extras = {} },
+			},
+			Plush = {
+				Light = { Tracks = "Treads", Hull = "Round", Turret = "Head", Gun = "Snout", Extras = { "Ears" } },
+				Medium = { Tracks = "Treads", Hull = "Round", Turret = "Head", Gun = "Snout", Extras = { "Ears" } },
+				Heavy = { Tracks = "Skirted", Hull = "Round", Turret = "Head", Gun = "Stubby", Extras = { "Ears" } },
+			},
+			Foam = {
+				Light = { Tracks = "Wheels", Hull = "Wedge", Turret = "Blaster", Gun = "Dart", Extras = {} },
+				Medium = { Tracks = "Treads", Hull = "Wedge", Turret = "Blaster", Gun = "Dart", Extras = {} },
+				Heavy = { Tracks = "Skirted", Hull = "Long", Turret = "Blaster", Gun = "Dart", Extras = {} },
+			},
+		},
+	},
+
 	-- Line signatures: what every tank of a line does, before any mods.
 	Signatures = {
 		Brick = {
@@ -201,7 +257,8 @@ local Config = {
 	StarterCost = 500,
 	Tanks = {
 		-- Brick Co.
-		Chip = { Line = "Brick", Class = "Light", Tier = 1, DisplayName = "Chip", Cost = 0, Mods = {},
+		Chip = { Look = { Tracks = "Wheels", Hull = "Slab", Turret = "Box", Gun = "Plain", Extras = { "Antenna", "Lamps" } },
+			Line = "Brick", Class = "Light", Tier = 1, DisplayName = "Chip", Cost = 0, Mods = {},
 			ModRows = { { "BrickWall", "SpareParts" }, { "RamPlate", "Interlock" } } },
 		Clicker = { Line = "Brick", Class = "Light", Tier = 2, Parent = "Chip", DisplayName = "Clicker", Cost = 1500,
 			Mods = { Speed = 1.05 }, ModRows = { { "SpareParts", "HeavyBricks" }, { "RamPlate", "ClusterBrick" } } },
@@ -216,7 +273,8 @@ local Config = {
 		Castellan = { Line = "Brick", Class = "Heavy", Tier = 3, Parent = "Bulwark", DisplayName = "Castellan", Cost = 4000,
 			Mods = { Armor = 0.92 }, ModRows = { { "Fortify", "BrickWall" }, { "RamPlate", "Interlock" } } },
 		-- Plush Patrol
-		Button = { Line = "Plush", Class = "Light", Tier = 1, DisplayName = "Button", Cost = 0, Mods = {},
+		Button = { Look = { Tracks = "Treads", Hull = "Round", Turret = "Head", Gun = "Snout", Extras = { "Ears", "Buttons", "Tail" } },
+			Line = "Plush", Class = "Light", Tier = 1, DisplayName = "Button", Cost = 0, Mods = {},
 			ModRows = { { "DoubleHop", "FluffArmor" }, { "Bouncy", "SqueakyDecoy" } } },
 		Bunbun = { Line = "Plush", Class = "Light", Tier = 2, Parent = "Button", DisplayName = "Bunbun", Cost = 1500,
 			Mods = { Speed = 1.05 }, ModRows = { { "DoubleHop", "Zoomies" }, { "Pounce", "SqueakyDecoy" } } },
@@ -231,7 +289,8 @@ local Config = {
 		BigHug = { Line = "Plush", Class = "Heavy", Tier = 3, Parent = "Grizzle", DisplayName = "Big Hug", Cost = 4000,
 			Mods = { Health = 1.05 }, ModRows = { { "Cuddle", "StuffingBurst" }, { "Bouncy", "SqueakyDecoy" } } },
 		-- Foam Force
-		Pew = { Line = "Foam", Class = "Light", Tier = 1, DisplayName = "Pew", Cost = 0, Mods = {},
+		Pew = { Look = { Tracks = "Wheels", Hull = "Wedge", Turret = "Blaster", Gun = "Dart", Extras = { "Clip", "Bumper" } },
+			Line = "Foam", Class = "Light", Tier = 1, DisplayName = "Pew", Cost = 0, Mods = {},
 			ModRows = { { "StickyDarts", "SpeedLoader" }, { "MegaDart", "SplitDart" } } },
 		Zinger = { Line = "Foam", Class = "Light", Tier = 2, Parent = "Pew", DisplayName = "Zinger", Cost = 1500,
 			Mods = { Speed = 1.05 }, ModRows = { { "SpeedLoader", "HoverDarts" }, { "SplitDart", "Ricochet" } } },
@@ -332,8 +391,7 @@ local Config = {
 	-- The Garage: a kid's desk with your tank on a cardboard turntable (built per client).
 	Garage = {
 		ScenePosition = Vector3.new(0, 400, 3000), -- desk-top center, far from any arena
-		TankColor = Color3.fromRGB(110, 190, 120), -- display paint until Dress Up exists
-		SpinSpeed = math.rad(18), -- idle turntable spin, per second
+				SpinSpeed = math.rad(18), -- idle turntable spin, per second
 		DragSpeed = math.rad(0.45), -- turntable yaw per pixel dragged
 		SpinResumeDelay = 1.5, -- seconds after a drag before the idle spin resumes
 		CameraOffset = Vector3.new(0, 11, 30), -- from the turntable center

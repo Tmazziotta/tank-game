@@ -1,15 +1,17 @@
 --!strict
--- Builds a toy-style tank from primitive parts, sized and styled by its class (scale,
--- barrel shape, trim). Forward is the model's -Z (LookVector).
--- Hull assembly: hull + treads + fenders + seat (welded). Turret assembly: turret + dome,
--- joined to the hull by a motorised yaw hinge. Barrel assembly: barrel + muzzle brake,
--- joined to the turret by a motorised, angle-limited pitch hinge.
+-- Builds a tank: an invisible physics skeleton sized by its class, dressed by TankLook from
+-- its blueprint in its line's style. Forward is the model's -Z (LookVector).
+-- Hull assembly: hull + treads + fender + skids/ramps + seat (welded). Turret assembly:
+-- turret, joined to the hull by a motorised yaw hinge. Barrel assembly: barrel, joined to
+-- the turret by a motorised, angle-limited pitch hinge. Every visible part is massless
+-- decoration welded to one of those three, so looks never change how a tank drives.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankClass = require(ReplicatedStorage.Shared.TankClass)
+local TankLook = require(ReplicatedStorage.Shared.TankLook)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
 export type Tank = {
@@ -31,17 +33,11 @@ export type Tank = {
 local TankBuilder = {}
 
 local DARK = Color3.fromRGB(58, 62, 80)
-local WHEEL = Color3.fromRGB(255, 150, 60)
-local LIGHT = Color3.fromRGB(255, 240, 150)
 
 local function contactPhysics(): PhysicalProperties
 	-- A high friction weight makes the tank's low friction dominate ordinary ground (weight 1:
 	-- ~0.157 combined), while slippery patches (weight 100) still win (~0.025 on ice/oil).
 	return PhysicalProperties.new(0.7, Config.Tank.GroundFriction, 0, 20, 100)
-end
-
-local function lighten(color: Color3, amount: number): Color3
-	return color:Lerp(Color3.new(1, 1, 1), amount)
 end
 
 local function makePart(
@@ -94,54 +90,18 @@ local function decor(part: BasePart)
 	part.Massless = true
 end
 
--- Class trim: an antenna on the turret (Light), armor skirts over the treads (Heavy).
-local function addTrim(
-	model: Model,
-	trim: string,
-	hull: BasePart,
-	turret: BasePart,
-	bodyColor: Color3,
-	at: (number, number, number) -> CFrame,
-	size: (number, number, number) -> Vector3
-)
-	if trim == "Antenna" then
-		local antenna = makePart(model, "Antenna", Enum.PartType.Block, size(0.2, 4, 0.2), at(1.6, 7.5, 0.8), DARK)
-		decor(antenna)
-		weld(turret, antenna)
-		local tip = makePart(model, "AntennaTip", Enum.PartType.Ball, size(0.6, 0.6, 0.6), at(1.6, 9.5, 0.8), LIGHT)
-		tip.Material = Enum.Material.Neon
-		decor(tip)
-		weld(turret, tip)
-	elseif trim == "Skirts" then
-		for _, side in { -1, 1 } do
-			local skirt = makePart(model, "Skirt", Enum.PartType.Block, size(0.5, 2.2, 10.4), at(5.15 * side, 2.0, 0), bodyColor:Lerp(DARK, 0.45))
-			decor(skirt)
-			weld(hull, skirt)
-		end
-	end
-end
-
--- Tier marks: one white chevron stripe per tier across the front of the fender.
-local function addTierStripes(
-	model: Model,
-	tier: number,
-	fender: BasePart,
-	at: (number, number, number) -> CFrame,
-	size: (number, number, number) -> Vector3
-)
-	for i = 1, tier do
-		local stripe = makePart(model, "TierStripe", Enum.PartType.Block, size(3.2, 0.1, 0.45), at(0, 3.75, -5.0 + (i - 1) * 0.8), Color3.new(1, 1, 1))
-		stripe.Material = Enum.Material.Neon
-		decor(stripe)
-		weld(fender, stripe)
-	end
+-- Physics-only parts: present for mass and contact, drawn by TankLook instead.
+local function hidden(part: BasePart)
+	part.Transparency = 1
+	part.CastShadow = false
 end
 
 -- Cylinders extend along their local X axis; these rotations aim that axis.
 local ALONG_Z = CFrame.Angles(0, math.rad(90), 0) -- X axis -> forward (-Z)
 local ALONG_Y = CFrame.Angles(0, 0, math.rad(90)) -- X axis -> up
 
-function TankBuilder.build(origin: CFrame, bodyColor: Color3, tankId: string, mods: { string }?): Tank
+-- `accent` is the team color (flag, stripes); nil uses the line's trim color (Garage).
+function TankBuilder.build(origin: CFrame, accent: Color3?, tankId: string, mods: { string }?): Tank
 	local def = TankCatalog.get(tankId)
 	local spec = TankCatalog.spec(tankId, mods)
 	local model = Instance.new("Model")
@@ -166,26 +126,31 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3, tankId: string, mo
 	end
 
 	-- Hull assembly ---------------------------------------------------------
-	local hull = makePart(model, TankSchema.Hull, Enum.PartType.Block, size(6.2, 2, 10), at(0, 2.2, 0), bodyColor:Lerp(DARK, 0.25))
+	local palette = (Config.Looks.Palettes :: any)[def.Line] or Config.Looks.Palettes.Brick
+	-- The hull's color is the line's main color (Brick chips take it).
+	local hull = makePart(model, TankSchema.Hull, Enum.PartType.Block, size(6.2, 2, 10), at(0, 2.2, 0), palette.Main)
 	hull.CustomPhysicalProperties = contactPhysics()
+	hidden(hull)
 
-	local fender = makePart(model, "Fender", Enum.PartType.Block, size(9.8, 0.6, 11.6), at(0, 3.4, 0), bodyColor)
+	local fender = makePart(model, "Fender", Enum.PartType.Block, size(9.8, 0.6, 11.6), at(0, 3.4, 0), palette.Main)
 	fender.CustomPhysicalProperties = contactPhysics()
+	hidden(fender)
 	weld(hull, fender)
-	addTierStripes(model, def.Tier, fender, at, size)
 
 	for _, side in { -1, 1 } do
 		local x = 3.4 * side
-		-- Visible treads keep their mass but don't collide: their flat ends and round caps
+		-- Tread pods keep their mass but don't collide: their flat ends and round caps
 		-- would butt into lips head-on. Ground contact is the invisible skid + ramps below.
 		local pod = makePart(model, "Tread", Enum.PartType.Cylinder, size(10, 3, 3), at(x, 1.6, 0) * ALONG_Z, DARK)
 		pod.CanCollide = false
 		pod.CanTouch = false
+		hidden(pod)
 		weld(hull, pod)
 		for _, z in { -5, 5 } do
 			local cap = makePart(model, "TreadCap", Enum.PartType.Ball, size(3, 3, 3), at(x, 1.6, z), DARK)
 			cap.CanCollide = false
 			cap.CanTouch = false
+			hidden(cap)
 			weld(hull, cap)
 		end
 
@@ -203,52 +168,46 @@ function TankBuilder.build(origin: CFrame, bodyColor: Color3, tankId: string, mo
 		local rear = makeWedge(model, "RearRamp", rampSize, at(x, 0.75, 4.75) * CFrame.Angles(math.pi, 0, 0))
 		collider(rear)
 		weld(hull, rear)
-		for _, z in { -3.3, 0, 3.3 } do
-			local wheel = makePart(model, "Wheel", Enum.PartType.Cylinder, size(0.4, 2.2, 2.2), at(5.0 * side, 1.6, z), WHEEL)
-			decor(wheel)
-			weld(hull, wheel)
-		end
-		local lamp = makePart(model, "Headlight", Enum.PartType.Ball, size(1, 1, 1), at(2.3 * side, 2.6, -5.0), LIGHT)
-		lamp.Material = Enum.Material.Neon
-		decor(lamp)
-		weld(hull, lamp)
 	end
 
 	local seat = Instance.new("Seat")
 	seat.Name = TankSchema.Seat
 	seat.Size = size(2.2, 0.5, 2.2)
 	seat.CFrame = at(0, 3.95, 3.6)
-	seat.Color = DARK
+	seat.Color = palette.Dark
 	seat.Material = Enum.Material.SmoothPlastic
 	seat.TopSurface = Enum.SurfaceType.Smooth
 	decor(seat)
+	hidden(seat) -- the driver sits here; the deck is drawn by TankLook
 	seat.Parent = model
 	weld(hull, seat)
 
 	-- Turret assembly ------------------------------------------------------
-	local turretColor = lighten(bodyColor, 0.12)
-	local turret = makePart(model, TankSchema.Turret, Enum.PartType.Cylinder, size(1.5, 5.8, 5.8), at(0, 4.55, -0.6) * ALONG_Y, turretColor)
+	local turret = makePart(model, TankSchema.Turret, Enum.PartType.Cylinder, size(1.5, 5.8, 5.8), at(0, 4.55, -0.6) * ALONG_Y, palette.Main)
 	turret.CanCollide = false
-
-	local dome = makePart(model, "Dome", Enum.PartType.Ball, size(4.2, 4.2, 4.2), at(0, 5.2, -0.6), lighten(bodyColor, 0.3))
-	decor(dome)
-	weld(turret, dome)
+	hidden(turret)
 
 	-- Barrel assembly: pitches on its own hinge at the front of the turret.
 	local barrel = makePart(model, TankSchema.Barrel, Enum.PartType.Cylinder, size(7 * L, W, W), at(0, 5.0, alongBarrel(3.5)) * ALONG_Z, DARK)
 	barrel.CanCollide = false
 	barrel.CanTouch = false
+	barrel.CanQuery = false -- shells hit the drawn gun, which may be shorter than this
+	hidden(barrel)
 
-	local brake = makePart(model, "MuzzleBrake", Enum.PartType.Cylinder, size(1.2, 1.5 * W, 1.5 * W), at(0, 5.0, alongBarrel(6.6)) * ALONG_Z, WHEEL)
-	decor(brake)
-	weld(barrel, brake)
+	-- Draw it: the kit welds its parts to the three physics anchors.
+	local kit = {
+		model = model,
+		line = def.Line,
+		accent = accent or palette.Trim,
+		at = at,
+		k = k,
+	}
+	local dressed = TankLook.dress(kit, { hull = hull, turret = turret, barrel = barrel }, tankId, L, W)
 
 	local muzzle = Instance.new("Attachment")
 	muzzle.Name = TankSchema.Muzzle
 	muzzle.Parent = barrel
-	muzzle.WorldCFrame = at(0, 5.0, alongBarrel(7.2))
-
-	addTrim(model, spec.Trim, hull, turret, bodyColor, at, size)
+	muzzle.WorldCFrame = at(0, 5.0, alongBarrel(dressed.muzzle))
 
 	-- Barrel hinge (axis = attachment X = tank right; positive angle = nose up) ---
 	local trunnionCFrame = at(0, 5.0, -2.6)
