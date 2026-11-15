@@ -247,6 +247,7 @@ local Config = {
 		CameraOffset = Vector3.new(0, 11, 30), -- from the turntable center
 		CameraLookHeight = 5, -- camera aims this far above the turntable center
 		FieldOfView = 50,
+		LoadoutSlots = 3, -- tanks in the garage carousel (a game pass adds one, later)
 	},
 
 	Maps = {

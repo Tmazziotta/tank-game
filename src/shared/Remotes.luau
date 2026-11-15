@@ -12,8 +12,9 @@ return {
 	ShellFired = folder:WaitForChild("ShellFired") :: RemoteEvent,
 	-- server -> all clients, when a shell lands: (shooter: Player?, report: CombatTypes.ShotReport)
 	ShotFired = folder:WaitForChild("ShotFired") :: RemoteEvent,
-	-- client -> server: (action: "Buy" | "Upgrade" | "Select", tankId: string, track: string?)
-	-- returns (ok: boolean, message: string?). Validated against saved data and Config.
+	-- client -> server: (action: "Buy" | "Upgrade" | "Select" | "SetSlot", tankId: string,
+	-- extra: track name (Upgrade) or slot number (SetSlot)) -> (ok: boolean, message: string?).
+	-- Handled by Core.Hangar, validated against saved data and Config.
 	GarageRequest = folder:WaitForChild("GarageRequest") :: RemoteFunction,
 	-- server -> one client: (data: PlayerDataTypes.Data) whenever their saved data changes
 	ProfileSync = folder:WaitForChild("ProfileSync") :: RemoteEvent,
@@ -25,4 +26,9 @@ return {
 	TankDestroyed = folder:WaitForChild("TankDestroyed") :: RemoteEvent,
 	-- server -> all clients: (kind: "Mine" | "Sink", position: Vector3) for effects
 	HazardEvent = folder:WaitForChild("HazardEvent") :: RemoteEvent,
+	-- client -> server (Garage): no arguments; start a match with the selected tank.
+	-- returns (ok: boolean, message: string?).
+	PlayRequest = folder:WaitForChild("PlayRequest") :: RemoteFunction,
+	-- server -> one client: (message: string) a short notice for the HUD (e.g. teleport failed)
+	Toast = folder:WaitForChild("Toast") :: RemoteEvent,
 }

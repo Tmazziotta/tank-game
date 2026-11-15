@@ -12,9 +12,11 @@ if not Places.runsGarage() then
 end
 
 local Location = require(ReplicatedStorage.Shared.Location)
+local Hangar = require(ServerScriptService.Core.Hangar)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
 
 PlayerData.start()
+Hangar.start()
 
 -- Everyone arrives in the Garage.
 local function onPlayerAdded(player: Player)

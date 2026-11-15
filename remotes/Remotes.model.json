@@ -36,6 +36,14 @@
     {
       "name": "HazardEvent",
       "className": "RemoteEvent"
+    },
+    {
+      "name": "PlayRequest",
+      "className": "RemoteFunction"
+    },
+    {
+      "name": "Toast",
+      "className": "RemoteEvent"
     }
   ]
 }

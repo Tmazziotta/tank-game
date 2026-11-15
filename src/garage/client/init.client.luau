@@ -12,7 +12,9 @@ end
 local GarageCamera = require(script.GarageCamera)
 local GarageGate = require(script.GarageGate)
 local GarageScene = require(script.GarageScene)
+local LobbyHud = require(script.LobbyHud)
 local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Turntable = require(script.Turntable)
 
 local scene = GarageScene.build()
@@ -34,6 +36,9 @@ local function onLocation(inGarage: boolean)
 end
 
 GarageGate.start()
+GarageGate.mount(LobbyHud.gui())
+LobbyHud.start()
+Remotes.Toast.OnClientEvent:Connect(LobbyHud.toast)
 GarageGate.changed:Connect(onLocation)
 ProfileClient.changed:Connect(showSelected)
 ProfileClient.start()

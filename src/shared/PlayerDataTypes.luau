@@ -12,7 +12,8 @@ export type Data = {
 	XP: number,
 	OwnedTanks: { [string]: boolean }, -- tank id -> owned
 	Upgrades: { [string]: UpgradeLevels }, -- tank id -> levels (missing = all 0)
-	SelectedTank: string,
+	SelectedTank: string, -- always one of Loadout
+	Loadout: { string }, -- Config.Garage.LoadoutSlots owned tank ids, no repeats
 	Stats: {
 		Kills: number,
 		Deaths: number,

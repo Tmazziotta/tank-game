@@ -34,6 +34,7 @@ local function template(): Data
 		OwnedTanks = owned,
 		Upgrades = {},
 		SelectedTank = Config.DefaultTank,
+		Loadout = TankCatalog.starters(),
 		Stats = { Kills = 0, Deaths = 0, Wins = 0, Rounds = 0 },
 	}
 end
@@ -66,8 +67,36 @@ local function sanitize(data: Data)
 	for _, id in TankCatalog.starters() do
 		data.OwnedTanks[id] = true
 	end
-	if not data.OwnedTanks[data.SelectedTank] then
-		data.SelectedTank = Config.DefaultTank
+	-- Loadout: owned, valid, no repeats, exactly LoadoutSlots long (topped up from owned
+	-- tanks in catalog order), and the selection must be one of its tanks.
+	local loadout: { string } = {}
+	local saved: { string } = data.Loadout or {}
+	for _, id in saved do
+		if #loadout < Config.Garage.LoadoutSlots and data.OwnedTanks[id] and not table.find(loadout, id) then
+			table.insert(loadout, id)
+		end
+	end
+	for _, id in TankCatalog.order do
+		if #loadout < Config.Garage.LoadoutSlots and data.OwnedTanks[id] and not table.find(loadout, id) then
+			table.insert(loadout, id)
+		end
+	end
+	-- Keep an owned selection (saves from before loadouts): swap it in for the same class.
+	local selected = data.SelectedTank
+	if TankCatalog.isValid(selected) and data.OwnedTanks[selected] and not table.find(loadout, selected) then
+		local class = TankCatalog.get(selected).Class
+		local slot = #loadout
+		for index, id in loadout do
+			if TankCatalog.get(id).Class == class then
+				slot = index
+				break
+			end
+		end
+		loadout[slot] = selected
+	end
+	data.Loadout = loadout
+	if not table.find(loadout, data.SelectedTank) then
+		data.SelectedTank = if table.find(loadout, Config.DefaultTank) then Config.DefaultTank else loadout[1]
 	end
 end
 
