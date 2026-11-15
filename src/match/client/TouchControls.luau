@@ -2,7 +2,7 @@
 -- On-screen controls for phones and tablets (no keyboard):
 --   * Left side: a floating joystick (appears where the thumb lands) drives the tank.
 --   * Right side: drag anywhere to look/aim (the screen-center crosshair is the aim point).
---   * FIRE (hold to keep firing as the gun reloads), SCOPE toggle, GARAGE open/close, and
+--   * FIRE (hold to keep firing as the gun reloads), SCOPE toggle, SWAP (tank menu) open/close, and
 --     NEXT to cycle spectated teammates when out of the round.
 -- Writes drive/look into TouchInput; buttons call the same actions as the keys.
 
@@ -34,7 +34,7 @@ local FIRE_DIM = Color3.fromRGB(120, 70, 70)
 local gui = Instance.new("ScreenGui")
 gui.Name = "TouchControls"
 gui.ResetOnSpawn = false
-gui.DisplayOrder = 20 -- above the garage, so the GARAGE button can close it
+gui.DisplayOrder = 20 -- above the swap menu, so the SWAP button can close it
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Enabled = false
 
@@ -74,7 +74,7 @@ end
 
 local fireButton = button("Fire", "FIRE", UDim2.fromOffset(120, 120), UDim2.new(1, -36, 1, -44), Vector2.new(1, 1), FIRE_COLOR, 26)
 local scopeButton = button("Scope", "SCOPE", UDim2.fromOffset(76, 76), UDim2.new(1, -176, 1, -50), Vector2.new(1, 1), DARK, 16)
-local garageButton = button("Garage", "GARAGE", UDim2.fromOffset(104, 44), UDim2.new(1, -16, 0.42, 0), Vector2.new(1, 0.5), DARK, 18)
+local garageButton = button("Swap", "SWAP", UDim2.fromOffset(104, 44), UDim2.new(1, -16, 0.42, 0), Vector2.new(1, 0.5), DARK, 18)
 local nextButton = button("Next", "NEXT", UDim2.fromOffset(110, 56), UDim2.new(1, -36, 1, -60), Vector2.new(1, 1), DARK, 20)
 
 -- Reload fill inside the fire button.
@@ -194,7 +194,7 @@ local function update()
 	scopeButton.Visible = drivingNow
 	stickBase.Visible = drivingNow
 	nextButton.Visible = spectating and not GarageMenu.isOpen()
-	garageButton.Text = if GarageMenu.isOpen() then "CLOSE" else "GARAGE"
+	garageButton.Text = if GarageMenu.isOpen() then "CLOSE" else "SWAP"
 	scopeButton.Text = if TankCamera.isScoped() then "UNSCOPE" else "SCOPE"
 	scopeButton.TextSize = if TankCamera.isScoped() then 13 else 16
 	if not drivingNow then

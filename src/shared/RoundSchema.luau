@@ -14,6 +14,7 @@ return {
 	EndsAtAttribute = "RoundEndsAt", -- workspace:GetServerTimeNow() timestamp; 0 = no timer
 	MapAttribute = "MapName", -- display name of the current arena
 	RoundNumberAttribute = "RoundNumber", -- 1-based, within the match
+	MatchTierAttribute = "MatchTier", -- tank tier everyone plays at this match (0 = none yet)
 
 	-- Per team, suffixed with the team name, e.g. "WinsRed", "AliveBlue".
 	WinsPrefix = "Wins", -- rounds won this match

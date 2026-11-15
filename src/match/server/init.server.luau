@@ -24,6 +24,7 @@ local PlayerData = require(ServerScriptService.Core.PlayerData)
 local PropCrusher = require(script.PropCrusher)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Rewards = require(script.Rewards)
+local MatchEntry = require(script.MatchEntry)
 local MatchRoster = require(script.MatchRoster)
 local MatchService = require(script.MatchService)
 local ScoreService = require(script.ScoreService)
@@ -84,5 +85,6 @@ TankService.onDestroyed(function(victim: Combatant.Combatant, killer: Combatant.
 end)
 
 BotService.start()
+MatchEntry.start()
 MatchRoster.start() -- after TeamService/TankService registered their roster callbacks
 MatchService.start()

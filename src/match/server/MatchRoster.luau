@@ -12,7 +12,7 @@ local Places = require(ReplicatedStorage.Shared.Places)
 
 local MatchRoster = {}
 
-local members: { [Player]: boolean } = {}
+local members: { [Player]: boolean } = {} -- who onJoined has fired for (drives the callbacks)
 local joinedCallbacks: { (Player) -> () } = {}
 local leftCallbacks: { (Player) -> () } = {}
 
@@ -43,11 +43,12 @@ local function track(player: Player)
 	update(player)
 end
 
--- Players in the match, in join order of the server's player list.
+-- Players in the match, in the server's player-list order. Reads Location directly
+-- (attribute signals are deferred, so `members` can briefly lag behind a change).
 function MatchRoster.players(): { Player }
 	local list = {}
 	for _, player in Players:GetPlayers() do
-		if members[player] then
+		if Location.get(player) == "Match" then
 			table.insert(list, player)
 		end
 	end
@@ -55,7 +56,7 @@ function MatchRoster.players(): { Player }
 end
 
 function MatchRoster.has(player: Player): boolean
-	return members[player] == true
+	return player.Parent == Players and Location.get(player) == "Match"
 end
 
 function MatchRoster.count(): number

@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 
 local BotBrain = require(script.Parent.BotBrain)
 local Combatant = require(script.Parent.Combatant)
+local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
 local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
@@ -38,8 +39,18 @@ local function clearTank(bot: Bot)
 end
 
 local function spawnBot(bot: Bot)
-	-- A random tank each round, so solo testing meets every class and tier.
-	local tankId = TankCatalog.order[rng:NextInteger(1, #TankCatalog.order)]
+	-- A random tank of the match tier each round (any tier if none is set).
+	local tier = ReplicatedStorage:GetAttribute(RoundSchema.MatchTierAttribute)
+	local choices = {}
+	for _, id in TankCatalog.order do
+		if type(tier) ~= "number" or tier == 0 or TankCatalog.get(id).Tier == tier then
+			table.insert(choices, id)
+		end
+	end
+	if #choices == 0 then
+		choices = TankCatalog.order
+	end
+	local tankId = choices[rng:NextInteger(1, #choices)]
 	local tank = TankService.spawnBot(bot.combatant, tankId)
 	bot.tank = tank
 	bot.brain = BotBrain.new(tank, bot.combatant)

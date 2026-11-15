@@ -6,6 +6,7 @@
 -- Config.Round.RoundsToWin wins (or MaxRounds have been played). A round: rebuild the map,
 -- swap sides, fill empty slots with bots, spawn everyone frozen for a countdown, then fight
 -- until a team is wiped out or the time cap hits, where the higher team health % wins.
+-- After the match everyone returns to the Garage (MatchEntry).
 -- State is published as attributes on ReplicatedStorage (see RoundSchema).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BotService = require(script.Parent.BotService)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
+local MatchEntry = require(script.Parent.MatchEntry)
 local MatchRoster = require(script.Parent.MatchRoster)
 local Rewards = require(script.Parent.Rewards)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
@@ -189,6 +191,7 @@ local function playMatch(first: boolean)
 		MapService.advance()
 	end
 	TeamService.balance()
+	MatchEntry.beginMatch()
 	ScoreService.reset()
 	ScoreService.setCounting(true)
 	local wins: { [string]: number } = {}
@@ -226,6 +229,8 @@ local function playMatch(first: boolean)
 	Rewards.onMatchEnded(matchWinner)
 	setPhase("MatchOver", cfg.MatchOver)
 	task.wait(cfg.MatchOver)
+	-- Rewards are already in everyone's profile; send the players back to the Garage.
+	MatchEntry.endMatch()
 end
 
 local function loop()

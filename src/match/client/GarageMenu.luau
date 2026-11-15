@@ -1,9 +1,10 @@
 --!strict
--- Garage: a 3x3 grid of tanks (columns = class, rows = tier) and a detail panel for the
--- highlighted tank with its stats, upgrades and a Select / Buy button. Opens by itself for
--- each pre-round countdown (time to counter-pick) and closes when the round starts; C
--- toggles it any time. The server validates every purchase and
--- decides whether a switch happens now or at your next respawn.
+-- Counter-pick menu: a 3x3 grid of tanks (columns = class, rows = tier) and a detail panel
+-- for the highlighted tank with its stats. In a match you can only swap between your
+-- loadout tanks of the match tier (buying and upgrading happen in the Garage). Opens by
+-- itself for each pre-round countdown and closes when the round starts; C toggles it any
+-- time. The server (Hangar) validates the swap and decides whether it happens now or at
+-- your next respawn.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -14,7 +15,6 @@ local MouseLock = require(script.Parent.MouseLock)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
 local TouchInput = require(script.Parent.TouchInput)
-local Progression = require(ReplicatedStorage.Shared.Progression)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
@@ -128,7 +128,7 @@ local function button(parent: Instance, position: UDim2, dims: UDim2, textSize: 
 	return b
 end
 
-local title = text(root, "GARAGE", 32, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 36))
+local title = text(root, "SWAP TANK", 32, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 36))
 local status = text(root, "", 18, UDim2.new(0, 0, 1, -26), UDim2.new(1, 0, 0, 24))
 
 -- Grid
@@ -231,7 +231,7 @@ local function pips(level: number): string
 end
 
 local function closeHint(): string
-	return if TouchInput.isTouchDevice() then "Tap GARAGE to close" else "[C] close"
+	return if TouchInput.isTouchDevice() then "Tap SWAP to close" else "[C] close"
 end
 
 local function hint(): string
@@ -239,6 +239,17 @@ local function hint(): string
 	return if phase == "PreRound" or phase == "Waiting"
 		then `Changes apply now.   {closeHint()}`
 		else `Changes apply next round.   {closeHint()}`
+end
+
+local function matchTier(): number
+	local value = ReplicatedStorage:GetAttribute(RoundSchema.MatchTierAttribute)
+	return if type(value) == "number" then value else 0
+end
+
+-- Loadout tanks of the match tier can be swapped in.
+local function swappable(data: Data, id: string): boolean
+	local tier = matchTier()
+	return table.find(data.Loadout, id) ~= nil and (tier == 0 or TankCatalog.get(id).Tier == tier)
 end
 
 local function render()
@@ -250,34 +261,33 @@ local function render()
 	if not busy and not status.Text:find("^Can't") then
 		status.Text = hint()
 	end
-	local level = Progression.levelForXP(data.XP)
-	title.Text = `GARAGE    Level {level}  ·  {data.Coins} coins`
+	local tier = matchTier()
+	title.Text = if tier > 0 then `SWAP TANK    Tier {tier} match` else "SWAP TANK"
 
 	for id, tile in tiles do
 		local def = TankCatalog.get(id)
-		local owned = data.OwnedTanks[id] == true
-		local unlockLevel = Progression.levelForTier(def.Tier)
 		local selected = data.SelectedTank == id
+		local inLoadout = table.find(data.Loadout, id) ~= nil
+		local usable = swappable(data, id)
 		if selected then
 			tile.info.Text = "DRIVING"
 			tile.info.TextColor3 = GOLD
-		elseif owned then
-			tile.info.Text = "Owned"
+		elseif usable then
+			tile.info.Text = "Swap in"
 			tile.info.TextColor3 = UPGRADE_COLOR
-		elseif level < unlockLevel then
-			tile.info.Text = `Level {unlockLevel}`
+		elseif inLoadout then
+			tile.info.Text = `Tier {def.Tier}`
 			tile.info.TextColor3 = MUTED
 		else
-			tile.info.Text = `{def.Cost} coins`
-			tile.info.TextColor3 = if data.Coins >= def.Cost then GOLD else MUTED
+			tile.info.Text = "Not in loadout"
+			tile.info.TextColor3 = MUTED
 		end
-		tile.name.TextTransparency = if owned or level >= unlockLevel then 0 else 0.4
+		tile.name.TextTransparency = if selected or usable then 0 else 0.5
 		tile.stroke.Color = if id == focused then Color3.new(1, 1, 1) elseif selected then GOLD else DISABLED_COLOR
 		tile.stroke.Thickness = if id == focused then 4 else 2
 	end
 
 	local def = TankCatalog.get(focused)
-	local owned = data.OwnedTanks[focused] == true
 	local levels = TankCatalog.noUpgrades()
 	local saved = data.Upgrades[focused]
 	if saved then
@@ -297,33 +307,22 @@ local function render()
 	for _, track in TankCatalog.trackOrder do
 		local row = upgradeRows[track]
 		local trackLevel = (levels :: any)[track] :: number
-		local cost = Progression.upgradeCost(focused, trackLevel)
 		row.label.Text = `{TankCatalog.trackName(track)}  {pips(trackLevel)}`
-		if not owned then
-			row.buy.Text = "—"
-			row.buy.BackgroundColor3 = DISABLED_COLOR
-		elseif cost then
-			row.buy.Text = `{cost} coins`
-			row.buy.BackgroundColor3 = if data.Coins >= cost then BUTTON_COLOR else DISABLED_COLOR
-		else
-			row.buy.Text = "MAX"
-			row.buy.BackgroundColor3 = DISABLED_COLOR
-		end
+		row.buy.Visible = false -- upgrades are bought in the Garage
 	end
 
-	local unlockLevel = Progression.levelForTier(def.Tier)
 	if data.SelectedTank == focused then
 		mainButton.Text = "Driving"
 		mainButton.BackgroundColor3 = DISABLED_COLOR
-	elseif owned then
+	elseif swappable(data, focused) then
 		mainButton.Text = "Drive this tank"
 		mainButton.BackgroundColor3 = BUTTON_COLOR
-	elseif level < unlockLevel then
-		mainButton.Text = `Unlocks at level {unlockLevel}`
+	elseif table.find(data.Loadout, focused) then
+		mainButton.Text = `Not this match's tier`
 		mainButton.BackgroundColor3 = DISABLED_COLOR
 	else
-		mainButton.Text = `Buy for {def.Cost} coins`
-		mainButton.BackgroundColor3 = if data.Coins >= def.Cost then GOLD else DISABLED_COLOR
+		mainButton.Text = "Not in your loadout"
+		mainButton.BackgroundColor3 = DISABLED_COLOR
 	end
 end
 
@@ -365,22 +364,10 @@ for id, tile in tiles do
 		render()
 	end)
 end
-for track, row in upgradeRows do
-	row.buy.Activated:Connect(function()
-		request("Upgrade", track)
-	end)
-end
 mainButton.Activated:Connect(function()
 	local data = ProfileClient.get()
-	if not data then
-		return
-	end
-	if data.OwnedTanks[focused] then
-		if data.SelectedTank ~= focused then
-			request("Select")
-		end
-	else
-		request("Buy")
+	if data and data.SelectedTank ~= focused and swappable(data, focused) then
+		request("Select")
 	end
 end)
 
@@ -399,7 +386,7 @@ local function onPhase()
 	end
 end
 
--- Open or close the garage (C key, or the touch GARAGE button).
+-- Open or close the swap menu (C key, or the touch SWAP button).
 function GarageMenu.toggle()
 	if gui.Enabled then
 		close()

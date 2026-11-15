@@ -31,9 +31,21 @@ local function onLocation(inGarage: boolean)
 	GarageCamera.setActive(inGarage, scene.center)
 	Turntable.setEnabled(inGarage)
 	if inGarage then
+		LobbyHud.setPlayBusy(false)
 		showSelected()
 	end
 end
+
+LobbyHud.onPlay(function()
+	LobbyHud.setPlayBusy(true, "STARTING...")
+	local ok, message = Remotes.PlayRequest:InvokeServer()
+	if not ok then
+		LobbyHud.setPlayBusy(false)
+		LobbyHud.toast(message or "Couldn't start the match")
+	end
+	-- On success the player leaves the Garage (dev mode) or is teleported (live); the
+	-- button resets when they come back.
+end)
 
 GarageGate.start()
 GarageGate.mount(LobbyHud.gui())

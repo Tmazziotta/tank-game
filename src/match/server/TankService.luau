@@ -360,6 +360,11 @@ end
 
 local function onPlayerAdded(player: Player)
 	player.CharacterAdded:Connect(function(character)
+		if not MatchRoster.has(player) then
+			-- A spawn that raced the player leaving the match: no driver outside a match.
+			character:Destroy()
+			return
+		end
 		spawnTank(player, character)
 	end)
 	if player.Character then
