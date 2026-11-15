@@ -5,10 +5,10 @@
 -- toggles it any time. The server validates every purchase and
 -- decides whether a switch happens now or at your next respawn.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local MatchGate = require(script.Parent.MatchGate)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MouseLock = require(script.Parent.MouseLock)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
@@ -36,7 +36,6 @@ local UPGRADE_COLOR = Color3.fromRGB(130, 230, 140)
 local BUTTON_COLOR = Color3.fromRGB(70, 150, 255)
 local DISABLED_COLOR = Color3.fromRGB(70, 74, 96)
 
-local localPlayer = Players.LocalPlayer
 
 type Stat = { label: string, value: (TankClass.Spec) -> number }
 
@@ -329,6 +328,9 @@ local function render()
 end
 
 local function open(auto: boolean)
+	if not MatchGate.inMatch() then
+		return
+	end
 	autoOpened = auto
 	local data = ProfileClient.get()
 	if data then
@@ -411,7 +413,7 @@ function GarageMenu.isOpen(): boolean
 end
 
 function GarageMenu.start()
-	gui.Parent = localPlayer:WaitForChild("PlayerGui")
+	MatchGate.mount(gui)
 	local firstSync = true
 	ProfileClient.changed:Connect(function(data: Data)
 		if firstSync then
@@ -432,6 +434,13 @@ function GarageMenu.start()
 		end
 	end)
 	ReplicatedStorage:GetAttributeChangedSignal(RoundSchema.PhaseAttribute):Connect(onPhase)
+	MatchGate.changed:Connect(function(inMatch: boolean)
+		if inMatch then
+			onPhase()
+		elseif gui.Enabled then
+			close()
+		end
+	end)
 	onPhase()
 end
 

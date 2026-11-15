@@ -3,11 +3,11 @@
 -- trickle for time played. Kill rewards only pay out during an active round. Each payout
 -- also tells the client (Remotes.Reward) so it can pop up "+25 coins".
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local MatchRoster = require(script.Parent.MatchRoster)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -70,7 +70,7 @@ end
 -- `winner` is nil for a drawn match. Stats: Rounds counts matches played, Wins matches won.
 function Rewards.onMatchEnded(winner: string?)
 	local e = Config.Economy
-	for _, player in Players:GetPlayers() do
+	for _, player in MatchRoster.players() do
 		Rewards.grant(player, e.MatchCoins, e.MatchXP, "Match complete", "Rounds")
 	end
 	if winner then
@@ -85,7 +85,7 @@ function Rewards.start()
 		local e = Config.Economy
 		while true do
 			task.wait(e.PlaytimeInterval)
-			for _, player in Players:GetPlayers() do
+			for _, player in MatchRoster.players() do
 				Rewards.grant(player, e.PlaytimeCoins, e.PlaytimeXP, "Playtime")
 			end
 		end

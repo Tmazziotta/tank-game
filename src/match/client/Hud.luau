@@ -3,9 +3,9 @@
 -- bar, a health bar, hit markers and a damage flash. Pure view: other modules push state
 -- into it.
 
-local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
+local MatchGate = require(script.Parent.MatchGate)
 local TouchInput = require(script.Parent.TouchInput)
 
 local Hud = {}
@@ -151,7 +151,7 @@ damageFlash.Parent = gui
 local hitMarkerTween: Tween? = nil
 
 function Hud.mount()
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	MatchGate.mount(gui)
 end
 
 function Hud.setVisible(visible: boolean)

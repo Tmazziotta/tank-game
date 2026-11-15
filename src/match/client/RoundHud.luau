@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local MatchGate = require(script.Parent.MatchGate)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -371,7 +372,7 @@ local function onTankDestroyed(report: CombatTypes.DestroyedReport)
 end
 
 function RoundHud.start()
-	gui.Parent = localPlayer:WaitForChild("PlayerGui")
+	MatchGate.mount(gui)
 	Remotes.TankDestroyed.OnClientEvent:Connect(onTankDestroyed)
 	RunService.RenderStepped:Connect(update)
 end

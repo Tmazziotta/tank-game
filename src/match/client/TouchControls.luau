@@ -6,10 +6,10 @@
 --     NEXT to cycle spectated teammates when out of the round.
 -- Writes drive/look into TouchInput; buttons call the same actions as the keys.
 
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local MatchGate = require(script.Parent.MatchGate)
 local GarageMenu = require(script.Parent.GarageMenu)
 local MouseLock = require(script.Parent.MouseLock)
 local Scope = require(script.Parent.Scope)
@@ -21,7 +21,6 @@ local WeaponClient = require(script.Parent.WeaponClient)
 
 local TouchControls = {}
 
-local localPlayer = Players.LocalPlayer
 
 local STICK_RADIUS = 60 -- thumb travel, pixels
 local STICK_DEADZONE = 0.15
@@ -216,7 +215,7 @@ end
 
 function TouchControls.start()
 	resetStick()
-	gui.Parent = localPlayer:WaitForChild("PlayerGui")
+	MatchGate.mount(gui)
 
 	fireButton.InputBegan:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then

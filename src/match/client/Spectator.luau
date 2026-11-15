@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local MatchGate = require(script.Parent.MatchGate)
 local TankCamera = require(script.Parent.TankCamera)
 local TankController = require(script.Parent.TankController)
 local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
@@ -70,6 +71,12 @@ local function watch(model: Model?)
 end
 
 local function update()
+	if not MatchGate.inMatch() then
+		if watching then
+			watch(nil) -- left the match: hand the camera back
+		end
+		return
+	end
 	if TankController.getTank() then
 		watching = nil -- TankController owns the camera now
 		return

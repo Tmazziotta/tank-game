@@ -2,6 +2,7 @@
 -- Garage server bootstrap: the lobby where players pick tanks and press PLAY. Runs on the
 -- Garage (start) place, and alongside the Match in dev mode (see Places).
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
@@ -10,6 +11,16 @@ if not Places.runsGarage() then
 	return
 end
 
+local Location = require(ReplicatedStorage.Shared.Location)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
 
 PlayerData.start()
+
+-- Everyone arrives in the Garage.
+local function onPlayerAdded(player: Player)
+	Location.set(player, "Garage")
+end
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end

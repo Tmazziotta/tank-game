@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local MatchGate = require(script.Parent.MatchGate)
 local AimTarget = require(script.Parent.AimTarget)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MouseLock = require(script.Parent.MouseLock)
@@ -104,7 +105,7 @@ function Scope.toggle()
 end
 
 function Scope.start()
-	gui.Parent = localPlayer:WaitForChild("PlayerGui")
+	MatchGate.mount(gui)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if processed then
 			return

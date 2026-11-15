@@ -11,6 +11,7 @@ end
 
 local GarageMenu = require(script.GarageMenu)
 local HazardEffects = require(script.HazardEffects)
+local MatchGate = require(script.MatchGate)
 local ProfileClient = require(script.ProfileClient)
 local ProgressHud = require(script.ProgressHud)
 local RoundHud = require(script.RoundHud)
@@ -21,6 +22,7 @@ local TankOverlays = require(script.TankOverlays)
 local TouchControls = require(script.TouchControls)
 local WeaponClient = require(script.WeaponClient)
 
+MatchGate.start()
 ProfileClient.start()
 TankController.start()
 WeaponClient.start()

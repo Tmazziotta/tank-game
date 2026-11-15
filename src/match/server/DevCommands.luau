@@ -10,6 +10,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
+local Location = require(ReplicatedStorage.Shared.Location)
 local MapService = require(script.Parent.MapService)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
 local TankHealth = require(script.Parent.TankHealth)
@@ -50,6 +51,14 @@ local commands: { [string]: (...any) -> any } = {
 	loadMap = function(id: string)
 		assert(MapService.load(id), `unknown map {id}`)
 		-- Takes effect for the next round (the round reset rebuilds the current map).
+		return nil
+	end,
+	-- setLocation(playerName, "Garage" | "Match"): move a player in dev mode, as PLAY does.
+	setLocation = function(playerName: string, place: string)
+		local player = Players:FindFirstChild(playerName)
+		assert(player and player:IsA("Player"), `no player {playerName}`)
+		assert(place == "Garage" or place == "Match", `bad place {place}`)
+		Location.set(player, place)
 		return nil
 	end,
 	-- setRound(key, value): tweak a Config.Round value live, e.g. ("MinPlayers", 1).

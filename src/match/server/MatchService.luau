@@ -8,12 +8,12 @@
 -- until a team is wiped out or the time cap hits, where the higher team health % wins.
 -- State is published as attributes on ReplicatedStorage (see RoundSchema).
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BotService = require(script.Parent.BotService)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
+local MatchRoster = require(script.Parent.MatchRoster)
 local Rewards = require(script.Parent.Rewards)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
 local ScoreService = require(script.Parent.ScoreService)
@@ -43,7 +43,7 @@ local function setTeamAttribute(prefix: string, team: string, value: number)
 end
 
 local function enoughPlayers(): boolean
-	return #Players:GetPlayers() >= Config.Round.MinPlayers
+	return MatchRoster.count() >= Config.Round.MinPlayers
 end
 
 -- Waits `seconds`, returning false early if `abort` becomes true.
@@ -114,14 +114,14 @@ end
 -- Spawn every player and bot for a round. Waits (briefly) for player tanks to exist.
 local function spawnEveryone()
 	TankService.despawnAll()
-	for _, player in Players:GetPlayers() do
+	for _, player in MatchRoster.players() do
 		task.spawn(player.LoadCharacter, player)
 	end
 	BotService.fillTeams()
 	local deadline = os.clock() + 5
 	while os.clock() < deadline do
 		local missing = false
-		for _, player in Players:GetPlayers() do
+		for _, player in MatchRoster.players() do
 			if TeamService.teamOf(player) and not TankService.getTank(player) then
 				missing = true
 			end
@@ -177,7 +177,7 @@ local function playRound(round: number): (string?, RoundSchema.EndReason)
 				return nil, "Draw"
 			end
 			return (if pa > pb then a else b), "Health"
-		elseif #Players:GetPlayers() == 0 then
+		elseif MatchRoster.count() == 0 then
 			return nil, "Draw"
 		end
 		task.wait(Config.Round.LiveInterval)
@@ -214,7 +214,7 @@ local function playMatch(first: boolean)
 		setFrozen(true)
 		setPhase("RoundOver", cfg.RoundOver)
 		task.wait(cfg.RoundOver)
-		if (winner and wins[winner] >= cfg.RoundsToWin) or #Players:GetPlayers() == 0 then
+		if (winner and wins[winner] >= cfg.RoundsToWin) or MatchRoster.count() == 0 then
 			break
 		end
 	end

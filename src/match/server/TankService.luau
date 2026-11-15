@@ -16,6 +16,7 @@ local MapService = require(script.Parent.MapService)
 local TeamInfo = require(ReplicatedStorage.Shared.TeamInfo)
 local TeamService = require(script.Parent.TeamService)
 local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
+local MatchRoster = require(script.Parent.MatchRoster)
 local TankHealth = require(script.Parent.TankHealth)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
@@ -379,6 +380,14 @@ function TankService.start()
 	TankHealth.onDepleted(onDepleted)
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(despawn)
+	-- Leaving the match (dev mode: back to the garage) removes the tank and the driver.
+	MatchRoster.onLeft(function(player)
+		despawn(player)
+		if player.Parent and player.Character then
+			player.Character:Destroy()
+			player.Character = nil
+		end
+	end)
 	for _, player in Players:GetPlayers() do
 		onPlayerAdded(player)
 	end

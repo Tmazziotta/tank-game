@@ -2,10 +2,10 @@
 -- Coins, level and XP bar (top left), plus "+25 coins +50 XP" popups for rewards and a
 -- level-up banner.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local MatchGate = require(script.Parent.MatchGate)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local ProfileClient = require(script.Parent.ProfileClient)
@@ -139,7 +139,7 @@ local function showPopup(info: RewardInfo)
 end
 
 function ProgressHud.start()
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	MatchGate.mount(gui)
 	local current = ProfileClient.get()
 	if current then
 		render(current)

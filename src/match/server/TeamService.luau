@@ -1,14 +1,14 @@
 --!strict
--- Red vs Blue. Players are put on the team with fewer players (new joiners) or shuffled
--- evenly at the start of each match. Teams also own a map side per round: side 1 or 2,
+-- Red vs Blue. Players joining the match (MatchRoster) are put on the team with fewer
+-- players, or shuffled evenly at the start of each match; leaving it clears their team. Teams also own a map side per round: side 1 or 2,
 -- swapped every round so asymmetric maps are fair.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Teams = game:GetService("Teams")
 
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
+local MatchRoster = require(script.Parent.MatchRoster)
 local TeamInfo = require(ReplicatedStorage.Shared.TeamInfo)
 
 local TeamService = {}
@@ -16,15 +16,15 @@ local TeamService = {}
 local teamObjects: { [string]: Team } = {}
 local sideOfTeam: { [string]: number } = {}
 
-local function setTeam(player: Player, name: string)
+local function setTeam(player: Player, name: string?)
 	Combatant.forPlayer(player).team = name
-	player.Team = teamObjects[name]
+	player.Team = if name then teamObjects[name] else nil
 end
 
 -- Players currently on `name`.
 function TeamService.players(name: string): { Player }
 	local list = {}
-	for _, player in Players:GetPlayers() do
+	for _, player in MatchRoster.players() do
 		if Combatant.forPlayer(player).team == name then
 			table.insert(list, player)
 		end
@@ -46,7 +46,7 @@ end
 
 -- Shuffle all players into two even teams (match start).
 function TeamService.balance()
-	local players = Players:GetPlayers()
+	local players = MatchRoster.players()
 	for i = #players, 2, -1 do
 		local j = math.random(i)
 		players[i], players[j] = players[j], players[i]
@@ -82,10 +82,12 @@ function TeamService.start()
 		team.Parent = Teams
 		teamObjects[name] = team
 	end
-	Players.PlayerAdded:Connect(TeamService.assign)
-	for _, player in Players:GetPlayers() do
-		TeamService.assign(player)
-	end
+	MatchRoster.onJoined(TeamService.assign)
+	MatchRoster.onLeft(function(player)
+		if player.Parent then
+			setTeam(player, nil)
+		end
+	end)
 end
 
 return TeamService
