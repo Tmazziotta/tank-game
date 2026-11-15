@@ -13,8 +13,9 @@ Roblox tank arena game with destructible maps. Rojo project: `src/` syncs into S
 ## Layout
 Two places in one experience: **Garage** (start place, lobby) and **Match** (arena). In Studio, dev mode (`Config.Places.DevMode`) runs both in one server; `Places.role()` decides what each bootstrap starts.
 - `src/shared` → `ReplicatedStorage.Shared` (Config, shared types, Places, TankBuilder) — all places
-- `src/core` → `ServerScriptService.Core` (server modules both places need: PlayerData) — all places
+- `src/core` → `ServerScriptService.Core` (server modules both places need: PlayerData, Hangar, Travel) — all places
 - `src/match/server` → `ServerScriptService.Match`, `src/match/client` → `StarterPlayerScripts.Match` (arena, rounds, tanks, bots)
 - `src/garage/server` → `ServerScriptService.Garage`, `src/garage/client` → `StarterPlayerScripts.Garage` (lobby)
 - `remotes/Remotes.model.json` → `ReplicatedStorage.Remotes` (every remote, all places)
 - Project files: `default.project.json` (dev: everything, used by Studio and typecheck), `garage.project.json`, `match.project.json` (publish builds). Rojo only reloads project-file changes after `rojo serve` restarts.
+- Players carry a `Location` attribute ("Garage" | "Match"); match code uses `MatchRoster` (never `Players:GetPlayers()`), and client GUIs mount through `LocationGate` (`MatchGate` / `GarageGate`). Publishing steps are in README.md.

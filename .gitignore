@@ -13,3 +13,6 @@ sourcemap.json
 # Vim swap files
 *.swp
 *.swo
+
+# Built place files for publishing
+/build
