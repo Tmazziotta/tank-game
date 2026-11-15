@@ -8,15 +8,16 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
 local TeamInfo = require(ReplicatedStorage.Shared.TeamInfo)
 local TeamService = require(script.Parent.TeamService)
-local TankBuilder = require(script.Parent.TankBuilder)
+local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
-local PlayerData = require(script.Parent.PlayerData)
+local PlayerData = require(ServerScriptService.Core.PlayerData)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
@@ -179,7 +180,7 @@ local function seatDriver(tank: TankBuilder.Tank, humanoid: Humanoid): boolean
 		if tank.seat.Occupant == humanoid then
 			return true
 		end
-		if humanoid.Health <= 0 or not tank.model.Parent then
+		if humanoid.Health <= 0 or not tank.model.Parent or not humanoid:IsDescendantOf(workspace) then
 			return false
 		end
 		tank.seat:Sit(humanoid)
@@ -236,7 +237,7 @@ local function spawnTank(player: Player, character: Model)
 	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), tankId, upgrades, "Tank_" .. player.Name, combatant, player)
 	tanks[player] = tank
 
-	if not seatDriver(tank, humanoid) then
+	if not seatDriver(tank, humanoid) and player.Character == character then
 		warn(`[TankService] could not seat {player.Name}`)
 	end
 	TankBuilder.sizeForces(tank)

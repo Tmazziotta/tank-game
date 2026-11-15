@@ -180,7 +180,14 @@ function PlayerData.isPersistent(): boolean
 	return ProfileStore.DataStoreState == "Access"
 end
 
+local started = false
+
+-- Safe to call from every bootstrap (the Garage and Match both need it in dev mode).
 function PlayerData.start()
+	if started then
+		return
+	end
+	started = true
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
 	for _, player in Players:GetPlayers() do

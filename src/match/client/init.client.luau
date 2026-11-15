@@ -1,5 +1,13 @@
 --!strict
--- Client bootstrap.
+-- Match client bootstrap: tank controls, combat HUDs and effects. Runs on the Match place,
+-- and alongside the Garage client in dev mode (see Places).
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Places = require(ReplicatedStorage.Shared.Places)
+if not Places.runsMatch() then
+	return
+end
 
 local GarageMenu = require(script.GarageMenu)
 local HazardEffects = require(script.HazardEffects)

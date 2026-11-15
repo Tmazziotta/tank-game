@@ -15,7 +15,7 @@ local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
-local TankBuilder = require(script.Parent.TankBuilder)
+local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
 

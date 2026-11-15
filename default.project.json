@@ -1,5 +1,5 @@
 {
-  "name": "tank-game",
+  "name": "tank-game-dev",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
@@ -7,51 +7,33 @@
         "$path": "src/shared"
       },
       "Remotes": {
-        "$className": "Folder",
-        "FireRequest": {
-          "$className": "RemoteEvent"
-        },
-        "ShotFired": {
-          "$className": "RemoteEvent"
-        },
-        "TankDestroyed": {
-          "$className": "RemoteEvent"
-        },
-        "GarageRequest": {
-          "$className": "RemoteFunction"
-        },
-        "ProfileSync": {
-          "$className": "RemoteEvent"
-        },
-        "ProfileRequest": {
-          "$className": "RemoteEvent"
-        },
-        "Reward": {
-          "$className": "RemoteEvent"
-        },
-        "ShellFired": {
-          "$className": "RemoteEvent"
-        },
-        "HazardEvent": {
-          "$className": "RemoteEvent"
-        }
+        "$path": "remotes/Remotes.model.json"
       }
     },
     "ServerScriptService": {
-      "Server": {
-        "$path": "src/server"
+      "Core": {
+        "$path": "src/core"
       },
       "Vendor": {
         "$className": "Folder",
         "ProfileStore": {
           "$path": "vendor/ProfileStore.luau"
         }
+      },
+      "Garage": {
+        "$path": "src/garage/server"
+      },
+      "Match": {
+        "$path": "src/match/server"
       }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "Client": {
-          "$path": "src/client"
+        "Garage": {
+          "$path": "src/garage/client"
+        },
+        "Match": {
+          "$path": "src/match/client"
         }
       }
     },
@@ -104,6 +86,11 @@
     "SoundService": {
       "$properties": {
         "RespectFilteringEnabled": true
+      }
+    },
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": false
       }
     }
   }

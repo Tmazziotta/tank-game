@@ -11,6 +11,10 @@ Roblox tank arena game with destructible maps. Rojo project: `src/` syncs into S
 - After any change, run `scripts/typecheck.sh` (luau-lsp strict analysis; must report no errors), then playtest via the Studio MCP and check console output for errors.
 
 ## Layout
-- `src/shared` → `ReplicatedStorage.Shared` (Config, shared types, remotes)
-- `src/server` → `ServerScriptService.Server` (`init.server.luau` bootstraps server modules)
-- `src/client` → `StarterPlayer.StarterPlayerScripts.Client` (`init.client.luau` bootstraps client modules)
+Two places in one experience: **Garage** (start place, lobby) and **Match** (arena). In Studio, dev mode (`Config.Places.DevMode`) runs both in one server; `Places.role()` decides what each bootstrap starts.
+- `src/shared` → `ReplicatedStorage.Shared` (Config, shared types, Places, TankBuilder) — all places
+- `src/core` → `ServerScriptService.Core` (server modules both places need: PlayerData) — all places
+- `src/match/server` → `ServerScriptService.Match`, `src/match/client` → `StarterPlayerScripts.Match` (arena, rounds, tanks, bots)
+- `src/garage/server` → `ServerScriptService.Garage`, `src/garage/client` → `StarterPlayerScripts.Garage` (lobby)
+- `remotes/Remotes.model.json` → `ReplicatedStorage.Remotes` (every remote, all places)
+- Project files: `default.project.json` (dev: everything, used by Studio and typecheck), `garage.project.json`, `match.project.json` (publish builds). Rojo only reloads project-file changes after `rojo serve` restarts.

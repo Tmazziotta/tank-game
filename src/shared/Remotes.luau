@@ -1,5 +1,5 @@
 --!strict
--- Typed access to the RemoteEvents declared in default.project.json.
+-- Typed access to the remotes declared in remotes/Remotes.model.json (shared by every place).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

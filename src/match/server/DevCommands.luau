@@ -4,13 +4,14 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
 local MapService = require(script.Parent.MapService)
-local PlayerData = require(script.Parent.PlayerData)
+local PlayerData = require(ServerScriptService.Core.PlayerData)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
 

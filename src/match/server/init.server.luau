@@ -1,7 +1,14 @@
 --!strict
--- Server bootstrap.
+-- Match server bootstrap: the arena, rounds, tanks and bots. Runs on the Match place, and
+-- alongside the Garage in dev mode (see Places).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local Places = require(ReplicatedStorage.Shared.Places)
+if not Places.runsMatch() then
+	return
+end
 
 local BotService = require(script.BotService)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
@@ -13,7 +20,7 @@ local DevCommands = require(script.DevCommands)
 local Garage = require(script.Garage)
 local MapService = require(script.MapService)
 local MineService = require(script.MineService)
-local PlayerData = require(script.PlayerData)
+local PlayerData = require(ServerScriptService.Core.PlayerData)
 local PropCrusher = require(script.PropCrusher)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Rewards = require(script.Rewards)

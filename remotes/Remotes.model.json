@@ -1,0 +1,41 @@
+{
+  "className": "Folder",
+  "children": [
+    {
+      "name": "FireRequest",
+      "className": "RemoteEvent"
+    },
+    {
+      "name": "ShotFired",
+      "className": "RemoteEvent"
+    },
+    {
+      "name": "TankDestroyed",
+      "className": "RemoteEvent"
+    },
+    {
+      "name": "GarageRequest",
+      "className": "RemoteFunction"
+    },
+    {
+      "name": "ProfileSync",
+      "className": "RemoteEvent"
+    },
+    {
+      "name": "ProfileRequest",
+      "className": "RemoteEvent"
+    },
+    {
+      "name": "Reward",
+      "className": "RemoteEvent"
+    },
+    {
+      "name": "ShellFired",
+      "className": "RemoteEvent"
+    },
+    {
+      "name": "HazardEvent",
+      "className": "RemoteEvent"
+    }
+  ]
+}

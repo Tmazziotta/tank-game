@@ -1,6 +1,8 @@
 --!strict
 -- All tunable gameplay values. Units: studs, seconds, radians.
 
+local RunService = game:GetService("RunService")
+
 local Config = {
 	-- Physics shared by every tank. Per-class stats (speed, armor, gun...) live in Classes.
 	Tank = {
@@ -224,6 +226,15 @@ local Config = {
 
 	Data = {
 		StoreName = "PlayerData_v1", -- bump the suffix to start everyone fresh
+	},
+
+	-- The experience's places. The Garage is the start place; PLAY teleports to a reserved
+	-- Match server. In dev mode (on in Studio, where teleports don't work) one server runs
+	-- both: PLAY moves you into the arena instead.
+	Places = {
+		GaragePlaceId = 134500042163643,
+		MatchPlaceId = 117097211658942,
+		DevMode = RunService:IsStudio(),
 	},
 
 	Maps = {
