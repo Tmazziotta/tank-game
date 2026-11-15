@@ -336,10 +336,10 @@ local Config = {
 		UnstickTime = 1.0, -- reverse-and-turn duration when stuck
 	},
 
-	-- 3v3 elimination, best of 5. Bots fill empty team slots.
+	-- 4v4 elimination, best of 5. Bots fill empty team slots.
 	Round = {
 		MinPlayers = 1, -- real players needed to start a match (bots fill the rest)
-		TeamSize = 3,
+		TeamSize = 4, -- 8-player servers (set Max Players to 8 in Game Settings)
 		RoundsToWin = 3, -- first to this many round wins takes the match...
 		MaxRounds = 5, -- ...or most round wins after this many rounds (draws can stall)
 		FirstPreRound = 12, -- countdown before round 1 (tanks frozen, garage open)

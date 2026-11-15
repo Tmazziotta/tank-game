@@ -2,7 +2,7 @@
 --!nolint DeprecatedApi
 -- (LoadCharacter is flagged in favour of LoadCharacterAsync, which our type definitions
 -- don't declare yet.)
--- 3v3 elimination, best of 5. A match: shuffle teams, then rounds until one team has
+-- 4v4 elimination, best of 5. A match: shuffle teams, then rounds until one team has
 -- Config.Round.RoundsToWin wins (or MaxRounds have been played). A round: rebuild the map,
 -- swap sides, fill empty slots with bots, spawn everyone frozen for a countdown, then fight
 -- until a team is wiped out or the time cap hits, where the higher team health % wins.

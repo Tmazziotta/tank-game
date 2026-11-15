@@ -159,7 +159,7 @@ Tier 3:   Light          Medium         Heavy
 | M5 ✅ | Maps: Town, Dockyard, Orchard — three routes, surfaces, water, minefields, terrain; shell travel + scope | Each map plays differently |
 | M6 ✅ | Team elimination: best of 5, spectate, health tiebreak, bot fill (built as 3v3) | A full match with bots plays out |
 | M7 ✅ | Mobile touch controls: joystick, drag-to-aim, fire/scope/garage/spectate buttons | Playable on a phone |
-| M8 | 4v4: team size 4, 8-player servers, 4 spawns per side on every map | A full 4v4 match with bots plays out |
+| M8 ✅ | 4v4: team size 4, 8-player servers, 4 spawns per side on every map | A full 4v4 match with bots plays out |
 | M9 | Garage lobby place + teleport to match servers, single-place dev mode | Join → garage → play → back to garage |
 | M10 | Toy lines: 3 lines × 3 tiers, tree shape above, per-tank mod trees, loadout bar, data reset | Each line plays differently; unlocks work |
 | M11 | Toy-room conversion of Town, Dockyard, Orchard | Each map reads as a toy room and still plays the same |

@@ -1,6 +1,6 @@
 --!strict
 -- Match and round state the server publishes as attributes on ReplicatedStorage.
--- A match is best of Config.Round.MaxRounds rounds of 3v3 elimination.
+-- A match is best of Config.Round.MaxRounds rounds of 4v4 elimination.
 
 -- Waiting: no players. PreRound: countdown, tanks frozen. Active: fighting.
 -- RoundOver / MatchOver: result screens.
