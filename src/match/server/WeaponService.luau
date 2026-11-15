@@ -11,11 +11,14 @@ local RunService = game:GetService("RunService")
 
 local Armor = require(script.Parent.Armor)
 local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
+local BrickChips = require(script.Parent.BrickChips)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Combatant = require(script.Parent.Combatant)
 local Config = require(ReplicatedStorage.Shared.Config)
+local DartClip = require(ReplicatedStorage.Shared.DartClip)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
+local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankHealth = require(script.Parent.TankHealth)
 local TankService = require(script.Parent.TankService)
 
@@ -79,6 +82,9 @@ local function hitTank(
 	end
 	report.kind = "Hit"
 	report.damage = TankHealth.damage(model, result.damage, shooter)
+	if (report.damage or 0) > 0 and TankCatalog.lineOfModel(model) == "Brick" then
+		BrickChips.burst(tank.hull, report.hit, direction)
+	end
 	return true
 end
 
@@ -105,14 +111,32 @@ function land(shell: Shell, result: RaycastResult, direction: Vector3)
 	Remotes.ShotFired:FireAllClients(shell.shooter.player, report)
 end
 
--- Fire `tank`'s gun on behalf of `shooter`, if its reload is done. Returns whether it fired.
+-- Foam Force fires from a clip: take one dart if there is one. The model's attributes are
+-- the clip state (only the server writes them; clients read them for the HUD).
+local function takeDart(tank: TankBuilder.Tank, sinceLast: number): boolean
+	local now = workspace:GetServerTimeNow()
+	local ammo = DartClip.read(tank.model, tank.spec, now)
+	if ammo <= 0 or sinceLast < DartClip.interval() then
+		return false
+	end
+	tank.model:SetAttribute(DartClip.AmmoAttribute, ammo - 1)
+	tank.model:SetAttribute(DartClip.ReloadAttribute, now + DartClip.reloadTime(tank.spec))
+	return true
+end
+
+-- Fire `tank`'s gun on behalf of `shooter`, if it's loaded. Returns whether it fired.
 function WeaponService.fireFrom(tank: TankBuilder.Tank, shooter: Combatant.Combatant): boolean
 	if not enabled then
 		return false
 	end
 	local now = os.clock()
 	local last = lastFired[shooter]
-	if last and now - last < tank.spec.Cooldown then
+	local sinceLast = if last then now - last else math.huge
+	if TankCatalog.lineOfModel(tank.model) == "Foam" then
+		if not takeDart(tank, sinceLast) then
+			return false
+		end
+	elseif sinceLast < tank.spec.Cooldown then
 		return false
 	end
 	lastFired[shooter] = now

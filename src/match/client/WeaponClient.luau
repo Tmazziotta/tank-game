@@ -10,7 +10,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
+local DartClip = require(ReplicatedStorage.Shared.DartClip)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local Hud = require(script.Parent.Hud)
 local MouseLock = require(script.Parent.MouseLock)
@@ -27,8 +29,22 @@ local SHIELD_COLOR = Color3.fromRGB(120, 200, 255)
 
 local lastConfirmed = -math.huge
 local lastRequested = -math.huge
+local mouseHeld = false
+
+-- Foam Force tanks fire from a clip: darts left, or nil for every other tank.
+local function clip(): (number?, number)
+	local tank = TankController.getTank()
+	if not tank or TankCatalog.lineOfModel(tank.model) ~= "Foam" then
+		return nil, 1
+	end
+	return DartClip.read(tank.model, tank.spec, workspace:GetServerTimeNow())
+end
 
 local function reloadProgress(): number
+	local ammo, clipProgress = clip()
+	if ammo then
+		return if ammo > 0 then 1 else clipProgress
+	end
 	local tank = TankController.getTank()
 	local cooldown = if tank then tank.spec.Cooldown else 1
 	return math.clamp((os.clock() - lastConfirmed) / cooldown, 0, 1)
@@ -39,7 +55,10 @@ local function tryFire()
 		return
 	end
 	local now = os.clock()
-	if reloadProgress() < 1 or now - lastRequested < REQUEST_TIMEOUT then
+	local ammo = clip()
+	-- Darts: wait out the gap between darts (and one request per gap while unconfirmed).
+	local wait = if ammo then DartClip.interval() else REQUEST_TIMEOUT
+	if reloadProgress() < 1 or now - lastRequested < wait or (ammo ~= nil and now - lastConfirmed < wait) then
 		return
 	end
 	lastRequested = now
@@ -103,7 +122,13 @@ function WeaponClient.start()
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if not processed and input.UserInputType == Enum.UserInputType.MouseButton1 then
+			mouseHeld = true
 			tryFire()
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			mouseHeld = false
 		end
 	end)
 
@@ -136,6 +161,12 @@ function WeaponClient.start()
 		local inTank = TankController.getTank() ~= nil and not MouseLock.isReleased()
 		Hud.setVisible(inTank)
 		if inTank then
+			-- Holding the mouse keeps firing as the gun reloads (as the touch FIRE button does).
+			if mouseHeld then
+				tryFire()
+			end
+			local ammo = clip()
+			Hud.setAmmo(ammo, DartClip.size())
 			Hud.setReload(reloadProgress())
 			Hud.update(barrelScreenPoint())
 			local tank = TankController.getTank()

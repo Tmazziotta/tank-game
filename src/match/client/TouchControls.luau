@@ -17,6 +17,7 @@ local Spectator = require(script.Parent.Spectator)
 local TankCamera = require(script.Parent.TankCamera)
 local TankController = require(script.Parent.TankController)
 local TouchInput = require(script.Parent.TouchInput)
+local PlushMoves = require(script.Parent.PlushMoves)
 local WeaponClient = require(script.Parent.WeaponClient)
 
 local TouchControls = {}
@@ -75,6 +76,7 @@ end
 local fireButton = button("Fire", "FIRE", UDim2.fromOffset(120, 120), UDim2.new(1, -36, 1, -44), Vector2.new(1, 1), FIRE_COLOR, 26)
 local scopeButton = button("Scope", "SCOPE", UDim2.fromOffset(76, 76), UDim2.new(1, -176, 1, -50), Vector2.new(1, 1), DARK, 16)
 local garageButton = button("Swap", "SWAP", UDim2.fromOffset(104, 44), UDim2.new(1, -16, 0.42, 0), Vector2.new(1, 0.5), DARK, 18)
+local hopButton = button("Hop", "HOP", UDim2.fromOffset(84, 84), UDim2.new(1, -54, 1, -186), Vector2.new(1, 1), Color3.fromRGB(236, 132, 186), 22)
 local nextButton = button("Next", "NEXT", UDim2.fromOffset(110, 56), UDim2.new(1, -36, 1, -60), Vector2.new(1, 1), DARK, 20)
 
 -- Reload fill inside the fire button.
@@ -192,6 +194,8 @@ local function update()
 	local spectating = TankController.getTank() == nil and Spectator.isWatching()
 	fireButton.Visible = drivingNow
 	scopeButton.Visible = drivingNow
+	hopButton.Visible = drivingNow and PlushMoves.canHop()
+	hopButton.BackgroundTransparency = if PlushMoves.hopProgress() >= 1 then 0 else 0.5
 	stickBase.Visible = drivingNow
 	nextButton.Visible = spectating and not GarageMenu.isOpen()
 	garageButton.Text = if GarageMenu.isOpen() then "CLOSE" else "SWAP"
@@ -217,6 +221,7 @@ function TouchControls.start()
 	resetStick()
 	MatchGate.mount(gui)
 
+	hopButton.Activated:Connect(PlushMoves.hop)
 	fireButton.InputBegan:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			fireHeld = true

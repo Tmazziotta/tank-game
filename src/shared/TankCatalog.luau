@@ -202,7 +202,12 @@ end
 
 -- Equipped mods stored on a tank model.
 function TankCatalog.modsOfModel(model: Instance): { string }
-	return TankCatalog.decodeMods(model:GetAttribute(TankCatalog.ModsAttribute))
+	-- The toy line of a tank model ("Brick" | "Plush" | "Foam").
+function TankCatalog.lineOfModel(model: Instance): string
+	return TankCatalog.get(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute))).Line
+end
+
+return TankCatalog.decodeMods(model:GetAttribute(TankCatalog.ModsAttribute))
 end
 
 -- Behavior mods equipped on a tank model (behavior name -> true).
@@ -219,7 +224,17 @@ end
 
 -- Effective stats of a live tank model, from its attributes.
 function TankCatalog.ofModel(model: Instance): TankClass.Spec
-	return TankCatalog.spec(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute)), TankCatalog.modsOfModel(model))
+	-- The toy line of a tank model ("Brick" | "Plush" | "Foam").
+function TankCatalog.lineOfModel(model: Instance): string
+	return TankCatalog.get(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute))).Line
+end
+
+return TankCatalog.spec(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute)), TankCatalog.modsOfModel(model))
+end
+
+-- The toy line of a tank model ("Brick" | "Plush" | "Foam").
+function TankCatalog.lineOfModel(model: Instance): string
+	return TankCatalog.get(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute))).Line
 end
 
 return TankCatalog

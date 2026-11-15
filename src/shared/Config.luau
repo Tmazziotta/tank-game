@@ -137,6 +137,30 @@ local Config = {
 
 	-- Toy lines (DESIGN.md "Toy lines"). Each line multiplies its tanks' class stats by its
 	-- Mods (same keys as tank Mods below) and has its own behavior-mod library.
+	-- Line signatures: what every tank of a line does, before any mods.
+	Signatures = {
+		Brick = {
+			ChipsPerHit = 3, -- bricks knocked off the hull by each damaging hit
+			ChipSize = Vector3.new(1.2, 0.7, 0.8),
+			ChipSpeed = 28, -- studs/s they fly off at
+		},
+		Plush = {
+			HopSpeed = 42, -- upward velocity change of a hop (Space / HOP button)
+			HopCooldown = 2.5,
+			GroundProbe = 1.5, -- hull must be within this of the ground to hop
+			BounceMinSpeed = 12, -- wall bounce only above this speed into the wall
+			BounceRestitution = 0.8, -- fraction of the into-wall speed bounced back
+			BouncePop = 8, -- small upward kick on a bounce
+			BounceLoose = 0.35, -- seconds the drive lets go after a bounce so it carries
+		},
+		Foam = {
+			ClipSize = 4, -- darts per clip
+			DartInterval = 0.25, -- seconds between darts in a clip
+			-- Clip reload = the tank's per-dart Cooldown x ClipSize, timed from the last dart
+			-- (an unfinished clip also tops up after that long without firing).
+		},
+	},
+
 	Lines = {
 		Order = { "Brick", "Plush", "Foam" },
 		Defs = {

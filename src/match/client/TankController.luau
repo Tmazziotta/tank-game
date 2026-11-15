@@ -13,6 +13,7 @@ local TankDrive = require(ReplicatedStorage.Shared.TankDrive)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local AimTarget = require(script.Parent.AimTarget)
 local Ballistics = require(ReplicatedStorage.Shared.Ballistics)
+local PlushMoves = require(script.Parent.PlushMoves)
 local TankCamera = require(script.Parent.TankCamera)
 local TouchInput = require(script.Parent.TouchInput)
 
@@ -57,6 +58,10 @@ local function step(dt: number)
 	local throttle = math.clamp(axis(Enum.KeyCode.W, Enum.KeyCode.S) + touchThrottle, -1, 1)
 	local turn = math.clamp(axis(Enum.KeyCode.D, Enum.KeyCode.A) + touchTurn, -1, 1)
 	TankDrive.drive(tank, throttle, turn, dt)
+	-- A Plush wall bounce carries for a moment before the tracks grip again.
+	if PlushMoves.isLoose() then
+		tank.drive.MaxAxesForce = Vector3.zero
+	end
 end
 
 local function unbind()
@@ -116,6 +121,7 @@ function TankController.start()
 		(require(playerModule) :: any):GetControls():Disable()
 	end
 
+	PlushMoves.start(TankController.getTank)
 	localPlayer.CharacterAdded:Connect(onCharacter)
 	if localPlayer.Character then
 		task.spawn(onCharacter, localPlayer.Character)

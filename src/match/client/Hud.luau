@@ -160,13 +160,59 @@ function Hud.setVisible(visible: boolean)
 	end
 end
 
+-- Foam darts: a pip per dart beside the reload bar; nil hides them (not a clip tank).
+local ammoRow = Instance.new("Frame")
+ammoRow.Name = "Ammo"
+ammoRow.AnchorPoint = Vector2.new(0, 0.5)
+ammoRow.Position = UDim2.new(1, 10, 0, 33) -- right of the reload bar
+ammoRow.Size = UDim2.fromOffset(0, 24)
+ammoRow.AutomaticSize = Enum.AutomaticSize.X
+ammoRow.BackgroundTransparency = 1
+ammoRow.Visible = false
+ammoRow.Parent = panel
+local ammoLayout = Instance.new("UIListLayout")
+ammoLayout.FillDirection = Enum.FillDirection.Horizontal
+ammoLayout.Padding = UDim.new(0, 6)
+ammoLayout.Parent = ammoRow
+local ammoPips: { Frame } = {}
+local DART_COLOR = Color3.fromRGB(255, 150, 40)
+local DART_EMPTY = Color3.fromRGB(60, 62, 74)
+local clipMode = false
+
+function Hud.setAmmo(ammo: number?, size: number)
+	clipMode = ammo ~= nil
+	ammoRow.Visible = clipMode
+	if not ammo then
+		return
+	end
+	while #ammoPips < size do
+		local pip = Instance.new("Frame")
+		pip.Size = UDim2.fromOffset(12, 24)
+		pip.BorderSizePixel = 0
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = pip
+		local outline = Instance.new("UIStroke")
+		outline.Color = Color3.new(0, 0, 0)
+		outline.Transparency = 0.4
+		outline.Parent = pip
+		pip.Parent = ammoRow
+		table.insert(ammoPips, pip)
+	end
+	for i, pip in ammoPips do
+		pip.Visible = i <= size
+		pip.BackgroundColor3 = if i <= ammo then DART_COLOR else DART_EMPTY
+	end
+end
+
 -- progress: 0 = just fired, 1 = loaded.
 function Hud.setReload(progress: number)
 	local ready = progress >= 1
 	fill.Size = UDim2.fromScale(math.clamp(progress, 0, 1), 1)
 	fill.BackgroundColor3 = if ready then READY_COLOR else RELOAD_COLOR
 	barrelStroke.Color = fill.BackgroundColor3
-	label.Text = if ready then (if TouchInput.isTouchDevice() then "READY" else "READY - CLICK TO FIRE") else "RELOADING"
+	local fireHint = if TouchInput.isTouchDevice() then "READY" elseif clipMode then "READY - HOLD TO FIRE" else "READY - CLICK TO FIRE"
+	label.Text = if ready then fireHint elseif clipMode then "RELOADING CLIP" else "RELOADING"
 end
 
 function Hud.setHealth(health: number, maxHealth: number)
