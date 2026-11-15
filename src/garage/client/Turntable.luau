@@ -9,7 +9,6 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local GarageScene = require(script.Parent.GarageScene)
-local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 
@@ -39,20 +38,17 @@ local function anchorAll(model: Model)
 end
 
 -- Identifies what's on display, so re-syncs of unchanged data don't rebuild the tank.
-local function displayKey(tankId: string, upgrades: PlayerDataTypes.UpgradeLevels?): string
-	if not upgrades then
-		return tankId
-	end
-	return `{tankId}:{upgrades.Gun}/{upgrades.Armor}/{upgrades.Engine}`
+local function displayKey(tankId: string, mods: { string }?): string
+	return `{tankId}:{TankCatalog.encodeMods(mods or {})}`
 end
 
--- Show `tankId` (with its upgrades) on the turntable; no-op if it's already there.
-function Turntable.show(tankId: string, upgrades: PlayerDataTypes.UpgradeLevels?)
+-- Show `tankId` (with its mods) on the turntable; no-op if it's already there.
+function Turntable.show(tankId: string, mods: { string }?)
 	local current = scene
 	if not current then
 		return
 	end
-	local key = displayKey(tankId, upgrades)
+	local key = displayKey(tankId, mods)
 	if key == shownKey and display and display.Parent then
 		return
 	end
@@ -60,7 +56,7 @@ function Turntable.show(tankId: string, upgrades: PlayerDataTypes.UpgradeLevels?
 	if display then
 		display:Destroy()
 	end
-	local tank = TankBuilder.build(base, Config.Garage.TankColor, TankCatalog.normalize(tankId), upgrades)
+	local tank = TankBuilder.build(base, Config.Garage.TankColor, TankCatalog.normalize(tankId), mods)
 	anchorAll(tank.model)
 	displayOffset = base:ToObjectSpace(tank.model:GetPivot())
 	tank.model.Name = "DisplayTank"

@@ -68,20 +68,25 @@ Tier 3:   Light          Medium         Heavy
 - Long-term target: **7–8 tiers** per line, continuing the three class lanes.
 - Each new tier: modest base-stat bump **plus** a new signature mechanic.
 - **A new tier's tank arrives stock, but is better than the previous tier fully modded.**
+- **Every tank has its own silhouette**, not just a reskin: moving up a tier changes the shape (hull, turret, gun), the way related real tanks differ (e.g. T-34 → KV-1). Tanks are built from a parts kit (hulls, turrets, guns, tracks, extras) with a per-tank blueprint, then styled by their line (snap-blocks, stitched plush, foam blaster). Real tank archetypes may inspire shapes; the look stays toy-themed and original.
+- Launch roster: 21 tanks (3 lines × 7). Names are original placeholders, free to rename.
 
 ### Mod trees (per tank)
-- Each tank has its own mini tree of ~4 rows, unlocked in order with that tank's XP.
+- Each tank has its own mini tree of 4 rows, unlocked in order with that tank's XP (tank XP only, no coins). A row opens once the row above has a mod unlocked.
 - Each row is **pick 1 of 2** mods; once both are unlocked, swap freely in the Toolbox.
+- Rows 1–2 are the same stat sidegrades on every tank (e.g. faster reload *or* more damage); rows 3–4 are behavior mods from the tank's line library (~8 per line, ~24 behaviors in all).
+- **Tank XP:** every XP reward also goes to the tank you were driving.
 - **Mods change how the tank plays, not just percentages.** Examples:
   - Brick Co.: shed bricks stack into a wall behind you · ram plate breaks buildings on contact
   - Plush Patrol: double-hop · squeaky decoy plush that draws fire
   - Foam Force: sticky darts that slow tanks · a "mega dart" as the last shot in each clip
-- Completing a tank's tree (elite) unlocks the tank(s) it leads to in the next tier.
+- Completing a tank's tree (**elite** = a mod unlocked in every row) unlocks the tank(s) it leads to in the next tier; you then buy them with coins.
 - Replaces the old gun/armor/engine upgrade tracks.
 
 ### Pacing (tune from data)
 - ~30–45 minutes of play per tier for early tiers; can stretch at higher tiers.
 - Other lines' tier-1 starters unlock at **player level 3** (~30 min) for a small coin price.
+- Until the tutorial (M12), new players pick their line from a one-time "Choose your toy line" popup in the Garage (the tutorial reuses it).
 
 ## Tutorial (first join, ~3 min)
 1. Wake up on the desk in a tiny tank: drive, aim, shoot.

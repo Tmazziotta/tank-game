@@ -21,8 +21,8 @@ local ToyShelf = {}
 
 local TILE_W, TILE_H, GAP = 150, 74, 10
 local GRID_W = TILE_W * 3 + GAP * 2
-local PANEL_W = 340
-local BODY_H = 340
+local PANEL_W = 360
+local BODY_H = 372
 local GOLD = Color3.fromRGB(255, 215, 90)
 local PANEL_COLOR = Color3.fromRGB(28, 30, 42)
 local MUTED = Color3.fromRGB(150, 155, 175)
@@ -61,10 +61,15 @@ local STATS: { Stat } = {
 	},
 }
 
--- Bars scale against the best fully-upgraded tank, so upgrades visibly grow them.
+-- Bars scale against the best tank with every stat mod on, so mods visibly grow them.
 local statBest: { number } = {}
 do
-	local maxed: PlayerDataTypes.UpgradeLevels = { Gun = Config.Upgrades.MaxLevel, Armor = Config.Upgrades.MaxLevel, Engine = Config.Upgrades.MaxLevel }
+	local maxed: { string } = {}
+	for _, row in Config.Mods.CommonRows do
+		for _, modId in row do
+			table.insert(maxed, modId)
+		end
+	end
 	for row, stat in STATS do
 		local best = 0
 		for _, id in TankCatalog.order do
@@ -80,7 +85,7 @@ local root = Instance.new("Frame")
 root.Name = "ToyShelf"
 root.AnchorPoint = Vector2.new(0.5, 0)
 root.Position = UDim2.fromScale(0.5, 0)
-root.Size = UDim2.fromOffset(GRID_W + GAP * 2 + PANEL_W, BODY_H + 80)
+root.Size = UDim2.fromOffset(GRID_W + GAP * 2 + PANEL_W, BODY_H + 74)
 root.BackgroundTransparency = 1
 local fitScale = Instance.new("UIScale") -- shrinks the shelf to fit short (phone) screens
 fitScale.Parent = root
@@ -130,10 +135,19 @@ ink(text(root, "TOY SHELF", 32, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 36)),
 local status = text(root, "", 18, UDim2.new(0, 0, 1, -26), UDim2.new(1, 0, 0, 24))
 ink(status, INK_SOFT)
 
--- Grid
+-- Line tabs: which toy line's tanks the grid shows.
+local lineTabs: { [string]: TextButton } = {}
+for index, line in TankCatalog.lineOrder do
+	local tab = button(root, UDim2.fromOffset((index - 1) * (TILE_W + GAP), 40), UDim2.fromOffset(TILE_W, 26), 15)
+	tab.Name = `Line{line}`
+	tab.Text = TankCatalog.line(line).DisplayName
+	lineTabs[line] = tab
+end
+
+-- Grid: the shown line's tree (columns = class, rows = tier).
 local grid = Instance.new("Frame")
 grid.BackgroundTransparency = 1
-grid.Position = UDim2.fromOffset(0, 46)
+grid.Position = UDim2.fromOffset(0, 72)
 grid.Size = UDim2.fromOffset(GRID_W, BODY_H)
 grid.Parent = root
 
@@ -170,7 +184,7 @@ end
 local panel = Instance.new("Frame")
 panel.BackgroundColor3 = PANEL_COLOR
 panel.BackgroundTransparency = 0.1
-panel.Position = UDim2.fromOffset(GRID_W + GAP * 2, 46)
+panel.Position = UDim2.fromOffset(GRID_W + GAP * 2, 40)
 panel.Size = UDim2.fromOffset(PANEL_W, BODY_H)
 panel.Parent = root
 corner(panel, 12)
@@ -207,14 +221,19 @@ for row, stat in STATS do
 	bars[row] = { base = base, upgraded = upgraded }
 end
 
-type UpgradeRow = { label: TextLabel, buy: TextButton }
-local upgradeRows: { [string]: UpgradeRow } = {}
-for index, track in TankCatalog.trackOrder do
-	local y = 186 + (index - 1) * 34
-	local label = text(panel, "", 16, UDim2.fromOffset(14, y), UDim2.fromOffset(190, 28))
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	local buy = button(panel, UDim2.new(1, -124, 0, y), UDim2.fromOffset(110, 28), 15)
-	upgradeRows[track] = { label = label, buy = buy }
+-- Mod tree: one row per tree row, two mods each. Tap a locked mod to unlock it (tank XP),
+-- an unlocked one to equip it.
+type ModButton = { button: TextButton, modId: string }
+local modButtons: { { ModButton } } = {}
+for row = 1, Config.Mods.Rows do
+	local y = 186 + (row - 1) * 36
+	local pair = {}
+	for slot = 1, 2 do
+		local b = button(panel, UDim2.new(0, 14 + (slot - 1) * 170, 0, y), UDim2.fromOffset(162, 30), 13)
+		b.TextWrapped = true
+		pair[slot] = { button = b, modId = "" }
+	end
+	modButtons[row] = pair
 end
 
 local mainButton = button(panel, UDim2.new(0, 14, 1, -42), UDim2.new(1, -28, 0, 32), 20)
@@ -224,12 +243,10 @@ local mainButton = button(panel, UDim2.new(0, 14, 1, -42), UDim2.new(1, -28, 0, 
 local focused: string = Config.DefaultTank -- tank shown in the detail panel
 local busy = false
 
-local function pips(level: number): string
-	return string.rep("●", level) .. string.rep("○", Config.Upgrades.MaxLevel - level)
-end
+local shownLine: string = TankCatalog.lineOrder[1]
 
 local function hint(): string
-	return "Driving a tank puts it in your loadout."
+	return "Tap a mod to unlock or equip it. Driving a tank puts it in your loadout."
 end
 
 local function render()
@@ -241,15 +258,20 @@ local function render()
 	if not busy and not status.Text:find("^Can't") then
 		status.Text = hint()
 	end
-	local level = Progression.levelForXP(data.XP)
-
+	for line, tab in lineTabs do
+		tab.BackgroundColor3 = if line == shownLine then TankCatalog.line(line).Color else DISABLED_COLOR
+	end
 	for id, tile in tiles do
 		local def = TankCatalog.get(id)
+		tile.button.Visible = def.Line == shownLine
 		local owned = data.OwnedTanks[id] == true
-		local unlockLevel = Progression.levelForTier(def.Tier)
+		local canBuy, reason = Progression.canBuy(data, id)
 		local selected = data.SelectedTank == id
 		if selected then
 			tile.info.Text = "DRIVING"
+			tile.info.TextColor3 = GOLD
+		elseif owned and Progression.isElite(data, id) then
+			tile.info.Text = "★ Elite"
 			tile.info.TextColor3 = GOLD
 		elseif owned and table.find(data.Loadout, id) then
 			tile.info.Text = "In loadout"
@@ -257,75 +279,70 @@ local function render()
 		elseif owned then
 			tile.info.Text = "Owned"
 			tile.info.TextColor3 = Color3.new(1, 1, 1)
-		elseif level < unlockLevel then
-			tile.info.Text = `Level {unlockLevel}`
-			tile.info.TextColor3 = MUTED
+		elseif canBuy or reason == "Not enough coins" then
+			tile.info.Text = `{Progression.tankCost(id)} coins`
+			tile.info.TextColor3 = if canBuy then GOLD else MUTED
 		else
-			tile.info.Text = `{def.Cost} coins`
-			tile.info.TextColor3 = if data.Coins >= def.Cost then GOLD else MUTED
+			tile.info.Text = "Locked"
+			tile.info.TextColor3 = MUTED
 		end
-		tile.name.TextTransparency = if owned or level >= unlockLevel then 0 else 0.4
+		tile.name.TextTransparency = if owned or canBuy then 0 else 0.4
 		tile.stroke.Color = if id == focused then Color3.new(1, 1, 1) elseif selected then GOLD else DISABLED_COLOR
 		tile.stroke.Thickness = if id == focused then 4 else 2
 	end
 
 	local def = TankCatalog.get(focused)
 	local owned = data.OwnedTanks[focused] == true
-	local levels = TankCatalog.noUpgrades()
-	local saved = data.Upgrades[focused]
-	if saved then
-		for _, track in TankCatalog.trackOrder do
-			(levels :: any)[track] = (saved :: any)[track] or 0
-		end
-	end
+	local equipped = Progression.equipped(data, focused)
 	local base = TankCatalog.spec(focused, nil)
-	local current = TankCatalog.spec(focused, levels)
+	local current = TankCatalog.spec(focused, equipped)
 	detailName.Text = `{string.upper(def.DisplayName)}  {string.rep("★", def.Tier)}`
-	detailRole.Text = `{TankClass.get(def.Class).DisplayName} · {base.Role}`
+	detailRole.Text = if owned
+		then `{TankClass.get(def.Class).DisplayName} · {Progression.tankXP(data, focused)} tank XP`
+		else `{TankClass.get(def.Class).DisplayName} · {TankCatalog.line(def.Line).DisplayName}`
 	for row, stat in STATS do
 		bars[row].base.Size = UDim2.fromScale(math.min(stat.value(base) / statBest[row], 1), 1)
 		bars[row].upgraded.Size = UDim2.fromScale(math.min(stat.value(current) / statBest[row], 1), 1)
 	end
 
-	for _, track in TankCatalog.trackOrder do
-		local row = upgradeRows[track]
-		local trackLevel = (levels :: any)[track] :: number
-		local cost = Progression.upgradeCost(focused, trackLevel)
-		row.label.Text = `{TankCatalog.trackName(track)}  {pips(trackLevel)}`
-		if not owned then
-			row.buy.Text = "—"
-			row.buy.BackgroundColor3 = DISABLED_COLOR
-		elseif cost then
-			row.buy.Text = `{cost} coins`
-			row.buy.BackgroundColor3 = if data.Coins >= cost then BUTTON_COLOR else DISABLED_COLOR
-		else
-			row.buy.Text = "MAX"
-			row.buy.BackgroundColor3 = DISABLED_COLOR
+	for row, entry in TankCatalog.modRows(focused) do
+		for slot, modId in entry do
+			local mb = modButtons[row][slot]
+			mb.modId = modId
+			local name = TankCatalog.mod(modId).DisplayName
+			local canUnlock, _, cost = Progression.canUnlockMod(data, focused, modId)
+			if table.find(equipped, modId) then
+				mb.button.Text = `✔ {name}`
+				mb.button.BackgroundColor3 = GOLD
+			elseif Progression.isUnlocked(data, focused, modId) then
+				mb.button.Text = name
+				mb.button.BackgroundColor3 = BUTTON_COLOR
+			else
+				mb.button.Text = `{name} · {cost} XP`
+				mb.button.BackgroundColor3 = if canUnlock then UPGRADE_COLOR else DISABLED_COLOR
+			end
 		end
 	end
 
-	local unlockLevel = Progression.levelForTier(def.Tier)
 	if data.SelectedTank == focused then
 		mainButton.Text = "Driving"
 		mainButton.BackgroundColor3 = DISABLED_COLOR
 	elseif owned then
 		mainButton.Text = "Drive this tank"
 		mainButton.BackgroundColor3 = BUTTON_COLOR
-	elseif level < unlockLevel then
-		mainButton.Text = `Unlocks at level {unlockLevel}`
-		mainButton.BackgroundColor3 = DISABLED_COLOR
 	else
-		mainButton.Text = `Buy for {def.Cost} coins`
-		mainButton.BackgroundColor3 = if data.Coins >= def.Cost then GOLD else DISABLED_COLOR
+		local canBuy, reason = Progression.canBuy(data, focused)
+		mainButton.Text = if canBuy or reason == "Not enough coins" then `Buy for {Progression.tankCost(focused)} coins` else reason or "Locked"
+		mainButton.BackgroundColor3 = if canBuy then GOLD else DISABLED_COLOR
 	end
 end
 
-local function request(action: string, track: string?)
+local function request(action: string, extra: string?)
 	if busy then
 		return
 	end
 	busy = true
-	local ok, message = Remotes.GarageRequest:InvokeServer(action, focused, track)
+	local ok, message = Remotes.GarageRequest:InvokeServer(action, focused, extra)
 	busy = false
 	status.Text = if ok then hint() else `Can't do that: {message or "unknown error"}`
 	render()
@@ -338,10 +355,32 @@ for id, tile in tiles do
 		render()
 	end)
 end
-for track, row in upgradeRows do
-	row.buy.Activated:Connect(function()
-		request("Upgrade", track)
+for line, tab in lineTabs do
+	tab.Activated:Connect(function()
+		shownLine = line
+		local data = ProfileClient.get()
+		focused = if data and data.OwnedTanks[data.SelectedTank] and TankCatalog.get(data.SelectedTank).Line == line
+			then data.SelectedTank
+			else TankCatalog.starterOf(line)
+		render()
 	end)
+end
+for _, pair in modButtons do
+	for _, mb in pair do
+		mb.button.Activated:Connect(function()
+			local data = ProfileClient.get()
+			if not data or mb.modId == "" then
+				return
+			end
+			local mod = TankCatalog.mod(mb.modId)
+			status.Text = `{mod.DisplayName}: {mod.Blurb}`
+			if Progression.isUnlocked(data, focused, mb.modId) then
+				request("EquipMod", mb.modId)
+			else
+				request("UnlockMod", mb.modId)
+			end
+		end)
+	end
 end
 mainButton.Activated:Connect(function()
 	local data = ProfileClient.get()
@@ -379,8 +418,9 @@ function ToyShelf.mount(parent: GuiObject)
 		fitConnection = parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	end
 	local data = ProfileClient.get()
-	if data then
+	if data and data.SelectedTank ~= "" then
 		focused = data.SelectedTank
+		shownLine = TankCatalog.get(focused).Line
 	end
 	root.Parent = parent
 	status.Text = hint()

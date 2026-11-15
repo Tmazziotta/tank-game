@@ -8,7 +8,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankClass = require(ReplicatedStorage.Shared.TankClass)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
@@ -26,7 +25,7 @@ export type Tank = {
 	barrelHinge: HingeConstraint,
 	muzzle: Attachment,
 	tankId: string, -- Config.Tanks key
-	spec: TankClass.Spec, -- effective stats: class x tank mods x upgrades
+	spec: TankClass.Spec, -- effective stats (TankCatalog.spec)
 }
 
 local TankBuilder = {}
@@ -142,18 +141,15 @@ end
 local ALONG_Z = CFrame.Angles(0, math.rad(90), 0) -- X axis -> forward (-Z)
 local ALONG_Y = CFrame.Angles(0, 0, math.rad(90)) -- X axis -> up
 
-function TankBuilder.build(origin: CFrame, bodyColor: Color3, tankId: string, upgrades: PlayerDataTypes.UpgradeLevels?): Tank
+function TankBuilder.build(origin: CFrame, bodyColor: Color3, tankId: string, mods: { string }?): Tank
 	local def = TankCatalog.get(tankId)
-	local spec = TankCatalog.spec(tankId, upgrades)
+	local spec = TankCatalog.spec(tankId, mods)
 	local model = Instance.new("Model")
 	model.Name = "Tank"
 	-- Clients rebuild the same spec from these (TankCatalog.ofModel).
 	model:SetAttribute(TankCatalog.IdAttribute, tankId)
 	model:SetAttribute(TankClass.Attribute, def.Class)
-	local levels = upgrades or TankCatalog.noUpgrades()
-	for track, attribute in TankCatalog.UpgradeAttributes do
-		model:SetAttribute(attribute, (levels :: any)[track] or 0)
-	end
+	model:SetAttribute(TankCatalog.ModsAttribute, TankCatalog.encodeMods(mods or {}))
 
 	-- Everything below is laid out at Medium size; k scales positions and sizes.
 	local k = spec.Scale

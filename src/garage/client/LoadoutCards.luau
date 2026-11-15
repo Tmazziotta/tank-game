@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankPreview = require(script.Parent.TankPreview)
@@ -74,7 +75,7 @@ local function newCard(parent: Instance, slot: number): Card
 	local face = b.face
 	face.ClipsDescendants = false
 
-	local stripe = Toy.frame(face, UDim2.fromOffset(8, 8), UDim2.new(0, 8, 1, -16), Config.Garage.PlaceholderLine.Color)
+	local stripe = Toy.frame(face, UDim2.fromOffset(8, 8), UDim2.new(0, 8, 1, -16), Toy.Grey)
 	Toy.corner(stripe, 4)
 	stripe.ZIndex = 3
 	local preview = TankPreview.new(face, UDim2.fromOffset(16, 4), UDim2.new(1, -20, 1, -50))
@@ -137,10 +138,12 @@ local function render(data: PlayerDataTypes.Data)
 			card.button.stroke.Color = if selected then Toy.Yellow else Toy.Brown
 			card.button.stroke.Thickness = if selected then 6 else Toy.Outline
 			card.tag.Visible = selected
-			card.preview.show(id, data.Upgrades[id])
+			local line = TankCatalog.line(def.Line)
+			card.preview.show(id, Progression.equipped(data, id))
+			card.stripe.BackgroundColor3 = line.Color
 			card.tier.Text = Toy.tier(def.Tier)
 			card.name.Text = def.DisplayName
-			card.class.Text = `{def.Class} · {Config.Garage.PlaceholderLine.Name}`
+			card.class.Text = `{def.Class} · {line.DisplayName}`
 		end
 	end
 end

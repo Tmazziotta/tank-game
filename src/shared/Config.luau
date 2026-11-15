@@ -135,81 +135,145 @@ local Config = {
 		},
 	},
 
-	-- The tanks players can own. Tier I of each class is the free starter; higher tiers
-	-- need a level and coins. Stats = class base (Classes) x Mods x upgrades. Mods keys:
-	-- Health, Damage, Reload (cooldown multiplier, <1 = faster), Speed, Turret, Armor
-	-- (damage-taken multiplier on every plate, <1 = tougher).
-	TankOrder = { "Pip", "Zipper", "Comet", "Biscuit", "Badger", "Ranger", "Boulder", "Rhino", "Fortress" },
-	DefaultTank = "Biscuit",
+	-- Toy lines (DESIGN.md "Toy lines"). Each line multiplies its tanks' class stats by its
+	-- Mods (same keys as tank Mods below) and has its own behavior-mod library.
+	Lines = {
+		Order = { "Brick", "Plush", "Foam" },
+		Defs = {
+			Brick = {
+				DisplayName = "Brick Co.",
+				Color = Color3.fromRGB(214, 72, 52),
+				Blurb = "Snap-together block tanks. Tough armor, slow tracks.",
+				Mods = { Health = 1.15, Armor = 0.9, Speed = 0.9 },
+			},
+			Plush = {
+				DisplayName = "Plush Patrol",
+				Color = Color3.fromRGB(236, 132, 186),
+				Blurb = "Stitched stuffed animals. Fast and bouncy, but fragile.",
+				Mods = { Health = 0.85, Speed = 1.15, Turret = 1.1 },
+			},
+			Foam = {
+				DisplayName = "Foam Force",
+				Color = Color3.fromRGB(255, 150, 40),
+				Blurb = "Dart blasters. Rapid fire, low damage per dart.",
+				Mods = { Damage = 0.6, Reload = 0.6 },
+			},
+		},
+	},
+
+	-- The 21 tanks: per line, a tier 1 light starter; tier 2 light/medium/heavy all from it;
+	-- tier 3 of each class from the same class at tier 2 (Parent). Stats = class base x line
+	-- Mods x TierScale x the tank's own Mods x equipped stat mods. Mods keys: Health, Damage,
+	-- Reload (cooldown multiplier, <1 = faster), Speed, Turret, Armor (damage taken, <1 =
+	-- tougher). ModRows = the tank's mod rows 3 and 4 (pick 1 of 2), from its line's library.
+	TankOrder = {
+		"Chip", "Clicker", "Stacker", "Bulwark", "Dasher", "Mason", "Castellan",
+		"Button", "Bunbun", "Cubby", "Grizzle", "Hopscotch", "Patches", "BigHug",
+		"Pew", "Zinger", "Blaster", "Thumper", "Whizbang", "Volley", "Megadart",
+	},
+	DefaultTank = "Chip", -- fallback for unknown ids (display, test dummies)
+	TierScale = { 1, 1.25, 1.55 }, -- Health and Damage per tier: stock beats last tier fully modded
+	StarterLevel = 3, -- player level to buy another line's tier 1 starter
+	StarterCost = 500,
 	Tanks = {
-		Pip = { Class = "Light", Tier = 1, DisplayName = "Pip", Cost = 0, Mods = {} },
-		Zipper = {
-			Class = "Light",
-			Tier = 2,
-			DisplayName = "Zipper",
-			Cost = 1500,
-			Mods = { Health = 1.1, Damage = 1.1, Speed = 1.08 }, -- even faster
-		},
-		Comet = {
-			Class = "Light",
-			Tier = 3,
-			DisplayName = "Comet",
-			Cost = 4000,
-			Mods = { Health = 1.2, Damage = 1.2, Speed = 1.1, Reload = 0.88 }, -- rapid fire
-		},
-		Biscuit = { Class = "Medium", Tier = 1, DisplayName = "Biscuit", Cost = 0, Mods = {} },
-		Badger = {
-			Class = "Medium",
-			Tier = 2,
-			DisplayName = "Badger",
-			Cost = 1500,
-			Mods = { Health = 1.12, Damage = 1.1, Turret = 1.2 }, -- quick turret
-		},
-		Ranger = {
-			Class = "Medium",
-			Tier = 3,
-			DisplayName = "Ranger",
-			Cost = 4000,
-			Mods = { Health = 1.22, Damage = 1.22, Reload = 0.92, Turret = 1.15 },
-		},
-		Boulder = { Class = "Heavy", Tier = 1, DisplayName = "Boulder", Cost = 0, Mods = {} },
-		Rhino = {
-			Class = "Heavy",
-			Tier = 2,
-			DisplayName = "Rhino",
-			Cost = 1500,
-			Mods = { Health = 1.12, Damage = 1.15, Speed = 1.05 }, -- hits harder
-		},
-		Fortress = {
-			Class = "Heavy",
-			Tier = 3,
-			DisplayName = "Fortress",
-			Cost = 4000,
-			Mods = { Health = 1.25, Damage = 1.2, Armor = 0.9 }, -- tougher plates all round
-		},
+		-- Brick Co.
+		Chip = { Line = "Brick", Class = "Light", Tier = 1, DisplayName = "Chip", Cost = 0, Mods = {},
+			ModRows = { { "BrickWall", "SpareParts" }, { "RamPlate", "Interlock" } } },
+		Clicker = { Line = "Brick", Class = "Light", Tier = 2, Parent = "Chip", DisplayName = "Clicker", Cost = 1500,
+			Mods = { Speed = 1.05 }, ModRows = { { "SpareParts", "HeavyBricks" }, { "RamPlate", "ClusterBrick" } } },
+		Stacker = { Line = "Brick", Class = "Medium", Tier = 2, Parent = "Chip", DisplayName = "Stacker", Cost = 1500,
+			Mods = {}, ModRows = { { "BrickWall", "Rebuild" }, { "Interlock", "ClusterBrick" } } },
+		Bulwark = { Line = "Brick", Class = "Heavy", Tier = 2, Parent = "Chip", DisplayName = "Bulwark", Cost = 1500,
+			Mods = { Armor = 0.95 }, ModRows = { { "Fortify", "Rebuild" }, { "RamPlate", "HeavyBricks" } } },
+		Dasher = { Line = "Brick", Class = "Light", Tier = 3, Parent = "Clicker", DisplayName = "Dasher", Cost = 4000,
+			Mods = { Speed = 1.05 }, ModRows = { { "SpareParts", "ClusterBrick" }, { "RamPlate", "HeavyBricks" } } },
+		Mason = { Line = "Brick", Class = "Medium", Tier = 3, Parent = "Stacker", DisplayName = "Mason", Cost = 4000,
+			Mods = { Reload = 0.95 }, ModRows = { { "BrickWall", "Interlock" }, { "Rebuild", "ClusterBrick" } } },
+		Castellan = { Line = "Brick", Class = "Heavy", Tier = 3, Parent = "Bulwark", DisplayName = "Castellan", Cost = 4000,
+			Mods = { Armor = 0.92 }, ModRows = { { "Fortify", "BrickWall" }, { "RamPlate", "Interlock" } } },
+		-- Plush Patrol
+		Button = { Line = "Plush", Class = "Light", Tier = 1, DisplayName = "Button", Cost = 0, Mods = {},
+			ModRows = { { "DoubleHop", "FluffArmor" }, { "Bouncy", "SqueakyDecoy" } } },
+		Bunbun = { Line = "Plush", Class = "Light", Tier = 2, Parent = "Button", DisplayName = "Bunbun", Cost = 1500,
+			Mods = { Speed = 1.05 }, ModRows = { { "DoubleHop", "Zoomies" }, { "Pounce", "SqueakyDecoy" } } },
+		Cubby = { Line = "Plush", Class = "Medium", Tier = 2, Parent = "Button", DisplayName = "Cubby", Cost = 1500,
+			Mods = {}, ModRows = { { "FluffArmor", "Cuddle" }, { "Bouncy", "StuffingBurst" } } },
+		Grizzle = { Line = "Plush", Class = "Heavy", Tier = 2, Parent = "Button", DisplayName = "Grizzle", Cost = 1500,
+			Mods = { Health = 1.05 }, ModRows = { { "Cuddle", "FluffArmor" }, { "StuffingBurst", "Pounce" } } },
+		Hopscotch = { Line = "Plush", Class = "Light", Tier = 3, Parent = "Bunbun", DisplayName = "Hopscotch", Cost = 4000,
+			Mods = { Speed = 1.05 }, ModRows = { { "Zoomies", "DoubleHop" }, { "Pounce", "Bouncy" } } },
+		Patches = { Line = "Plush", Class = "Medium", Tier = 3, Parent = "Cubby", DisplayName = "Patches", Cost = 4000,
+			Mods = { Turret = 1.1 }, ModRows = { { "SqueakyDecoy", "FluffArmor" }, { "StuffingBurst", "Zoomies" } } },
+		BigHug = { Line = "Plush", Class = "Heavy", Tier = 3, Parent = "Grizzle", DisplayName = "Big Hug", Cost = 4000,
+			Mods = { Health = 1.05 }, ModRows = { { "Cuddle", "StuffingBurst" }, { "Bouncy", "SqueakyDecoy" } } },
+		-- Foam Force
+		Pew = { Line = "Foam", Class = "Light", Tier = 1, DisplayName = "Pew", Cost = 0, Mods = {},
+			ModRows = { { "StickyDarts", "SpeedLoader" }, { "MegaDart", "SplitDart" } } },
+		Zinger = { Line = "Foam", Class = "Light", Tier = 2, Parent = "Pew", DisplayName = "Zinger", Cost = 1500,
+			Mods = { Speed = 1.05 }, ModRows = { { "SpeedLoader", "HoverDarts" }, { "SplitDart", "Ricochet" } } },
+		Blaster = { Line = "Foam", Class = "Medium", Tier = 2, Parent = "Pew", DisplayName = "Blaster", Cost = 1500,
+			Mods = {}, ModRows = { { "StickyDarts", "DrumMag" }, { "MegaDart", "Suction" } } },
+		Thumper = { Line = "Foam", Class = "Heavy", Tier = 2, Parent = "Pew", DisplayName = "Thumper", Cost = 1500,
+			Mods = { Damage = 1.05 }, ModRows = { { "DrumMag", "Suction" }, { "MegaDart", "Ricochet" } } },
+		Whizbang = { Line = "Foam", Class = "Light", Tier = 3, Parent = "Zinger", DisplayName = "Whizbang", Cost = 4000,
+			Mods = { Reload = 0.95 }, ModRows = { { "HoverDarts", "StickyDarts" }, { "SplitDart", "SpeedLoader" } } },
+		Volley = { Line = "Foam", Class = "Medium", Tier = 3, Parent = "Blaster", DisplayName = "Volley", Cost = 4000,
+			Mods = { Reload = 0.95 }, ModRows = { { "DrumMag", "Ricochet" }, { "SplitDart", "MegaDart" } } },
+		Megadart = { Line = "Foam", Class = "Heavy", Tier = 3, Parent = "Thumper", DisplayName = "Megadart", Cost = 4000,
+			Mods = { Damage = 1.05 }, ModRows = { { "Suction", "StickyDarts" }, { "MegaDart", "HoverDarts" } } },
 	},
 
 	Progression = {
 		-- XP needed to reach level n = XPPerLevelStep * n * (n - 1) / 2  (L2 = 200, L4 = 1200, L8 = 5600)
 		XPPerLevelStep = 200,
 		MaxLevel = 30,
-		TierLevel = { 1, 4, 8 }, -- level needed to buy a tank of tier 1 / 2 / 3
 	},
 
-	-- Per-tank upgrades: each track has MaxLevel levels; each level applies its PerLevel
-	-- multipliers again (compounding). Cost of level n = Costs[n] x TierCostFactor[tier].
-	Upgrades = {
-		TrackOrder = { "Gun", "Armor", "Engine" },
-		MaxLevel = 3,
-		Costs = { 200, 400, 800 },
-		TierCostFactor = { 1, 1.5, 2.25 },
-		Tracks = {
-			Gun = { DisplayName = "Gun", PerLevel = { Damage = 1.05, Reload = 0.97 } },
-			Armor = { DisplayName = "Armor", PerLevel = { Health = 1.06 } },
-			Engine = { DisplayName = "Engine", PerLevel = { Speed = 1.04 } },
+	-- Per-tank mod trees (DESIGN.md "Mod trees"): Rows rows, pick 1 of 2 per row. Unlocking a
+	-- mod spends that tank's XP (it earns XP while you drive it); a row opens once the row
+	-- above has a mod unlocked. Elite = every row has one unlocked, which unlocks the tanks
+	-- it leads to. Rows 1-2 are the same stat sidegrades on every tank; rows 3-4 are the
+	-- tank's ModRows. Stats = multipliers (tank Mods keys); Behavior = a hook the match runs.
+	Mods = {
+		Rows = 4,
+		RowXP = { 150, 300, 500, 800 }, -- tank XP per unlock in each row, at tier 1
+		TierXPFactor = { 1, 1.6, 2.4 },
+		CommonRows = { { "QuickLoader", "HeavyShells" }, { "ThickPlates", "TunedEngine" } },
+		Defs = {
+			-- Stat sidegrades (every tank)
+			QuickLoader = { DisplayName = "Quick Loader", Blurb = "Reload 10% faster.", Stats = { Reload = 0.9 } },
+			HeavyShells = { DisplayName = "Heavy Shells", Blurb = "10% more damage per shot.", Stats = { Damage = 1.1 } },
+			ThickPlates = { DisplayName = "Thick Plates", Blurb = "10% more health.", Stats = { Health = 1.1 } },
+			TunedEngine = { DisplayName = "Tuned Engine", Blurb = "8% faster driving.", Stats = { Speed = 1.08 } },
+			-- Brick Co.
+			BrickWall = { DisplayName = "Brick Wall", Blurb = "Bricks knocked off you stack into a wall behind you.", Behavior = "BrickWall" },
+			RamPlate = { DisplayName = "Ram Plate", Blurb = "Ramming breaks walls and damages tanks.", Behavior = "RamPlate" },
+			Rebuild = { DisplayName = "Rebuild", Blurb = "Slowly snap lost health back on when not hit for a while.", Behavior = "Rebuild" },
+			HeavyBricks = { DisplayName = "Heavy Bricks", Blurb = "Your shells knock tanks back.", Behavior = "HeavyBricks" },
+			Interlock = { DisplayName = "Interlock", Blurb = "Take less damage while standing still.", Behavior = "Interlock" },
+			ClusterBrick = { DisplayName = "Cluster Brick", Blurb = "Shells burst into bricks: bigger blast.", Behavior = "ClusterBrick" },
+			SpareParts = { DisplayName = "Spare Parts", Blurb = "Repair some health on every kill.", Behavior = "SpareParts" },
+			Fortify = { DisplayName = "Fortify", Blurb = "Tougher front plate, weaker rear.", Behavior = "Fortify" },
+			-- Plush Patrol
+			DoubleHop = { DisplayName = "Double Hop", Blurb = "Hop again in mid-air.", Behavior = "DoubleHop" },
+			SqueakyDecoy = { DisplayName = "Squeaky Decoy", Blurb = "Drop a squeaky plush that draws enemy fire.", Behavior = "SqueakyDecoy" },
+			Bouncy = { DisplayName = "Bouncy", Blurb = "Bounce off walls with a burst of speed.", Behavior = "Bouncy" },
+			Cuddle = { DisplayName = "Cuddle", Blurb = "Ramming an enemy hurts them and heals you.", Behavior = "Cuddle" },
+			StuffingBurst = { DisplayName = "Stuffing Burst", Blurb = "When destroyed, your stuffing heals nearby teammates.", Behavior = "StuffingBurst" },
+			FluffArmor = { DisplayName = "Fluff Armor", Blurb = "The first hit each round does half damage.", Behavior = "FluffArmor" },
+			Zoomies = { DisplayName = "Zoomies", Blurb = "Speed burst after every kill.", Behavior = "Zoomies" },
+			Pounce = { DisplayName = "Pounce", Blurb = "Hop lunges you forward.", Behavior = "Pounce" },
+			-- Foam Force
+			StickyDarts = { DisplayName = "Sticky Darts", Blurb = "Hits slow the target for a moment.", Behavior = "StickyDarts" },
+			MegaDart = { DisplayName = "Mega Dart", Blurb = "The last dart in each clip is a big one.", Behavior = "MegaDart" },
+			DrumMag = { DisplayName = "Drum Mag", Blurb = "Bigger clip, longer reload.", Behavior = "DrumMag" },
+			SplitDart = { DisplayName = "Split Dart", Blurb = "Fire three darts in a spread.", Behavior = "SplitDart" },
+			SpeedLoader = { DisplayName = "Speed Loader", Blurb = "Reload a clip much faster.", Behavior = "SpeedLoader" },
+			Ricochet = { DisplayName = "Ricochet", Blurb = "Darts bounce once off walls.", Behavior = "Ricochet" },
+			Suction = { DisplayName = "Suction Cups", Blurb = "Darts stick and deal damage over time.", Behavior = "Suction" },
+			HoverDarts = { DisplayName = "Hover Darts", Blurb = "Faster darts with no drop.", Behavior = "HoverDarts" },
 		},
 	},
-
 	Economy = {
 		KillCoins = 25,
 		KillXP = 50,
@@ -225,7 +289,7 @@ local Config = {
 	},
 
 	Data = {
-		StoreName = "PlayerData_v1", -- bump the suffix to start everyone fresh
+		StoreName = "PlayerData_v2", -- bump the suffix to start everyone fresh (v2: toy lines)
 	},
 
 	-- The experience's places. The Garage is the start place; PLAY teleports to a reserved
@@ -253,8 +317,6 @@ local Config = {
 		FieldOfView = 50,
 		LoadoutSlots = 3, -- tanks in the garage carousel (a game pass adds one, later)
 		LockedSlots = 1, -- extra slots shown locked (the game pass), after the real ones
-		-- Placeholder until the toy lines (M10): every current tank belongs to this line.
-		PlaceholderLine = { Name = "Classic", Color = Color3.fromRGB(110, 160, 220) },
 		StatPips = 5, -- pips per stat bar on the tank card
 	},
 

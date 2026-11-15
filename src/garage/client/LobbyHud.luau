@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local CurrencyBar = require(script.Parent.CurrencyBar)
+local LinePicker = require(script.Parent.LinePicker)
 local LoadoutCards = require(script.Parent.LoadoutCards)
 local PlayPanel = require(script.Parent.PlayPanel)
 local PlayerCard = require(script.Parent.PlayerCard)
@@ -172,18 +173,28 @@ local function rescale()
 	end
 end
 
--- Toy Shelf "NEW": a tank you could buy right now (unlocked, affordable, not owned).
+-- "NEW" badges: Toy Shelf when a tank can be bought right now; Toolbox when the selected
+-- tank has a mod it can unlock.
 local function updateNew(data: PlayerDataTypes.Data)
-	local level = Progression.levelForXP(data.XP)
-	local any = false
+	local buyable = false
 	for _, id in TankCatalog.order do
-		local def = TankCatalog.get(id)
-		if not data.OwnedTanks[id] and level >= Progression.levelForTier(def.Tier) and data.Coins >= def.Cost then
-			any = true
+		if Progression.canBuy(data, id) then
+			buyable = true
 			break
 		end
 	end
-	TabRail.setNew("ToyShelf", any)
+	TabRail.setNew("ToyShelf", buyable)
+	local unlockable = false
+	if data.OwnedTanks[data.SelectedTank] then
+		for _, row in TankCatalog.modRows(data.SelectedTank) do
+			for _, modId in row do
+				if Progression.canUnlockMod(data, data.SelectedTank, modId) then
+					unlockable = true
+				end
+			end
+		end
+	end
+	TabRail.setNew("Toolbox", unlockable)
 end
 
 -- PLAY calls `callback` (which may yield); the button is locked until it returns.
@@ -218,6 +229,7 @@ function LobbyHud.start()
 		callback()
 	end)
 	ToyShelf.start()
+	LinePicker.mount(root, LobbyHud.toast)
 	layoutSheet()
 	ProfileClient.changed:Connect(updateNew)
 	local data = ProfileClient.get()

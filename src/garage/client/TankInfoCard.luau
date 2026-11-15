@@ -1,13 +1,13 @@
 --!strict
 -- Right-side card for the selected tank: name, line / class / tier chips, 5-pip stat bars
--- (firepower, armor, speed), progress toward "elite" and an Open Toolbox button.
--- Until mod trees exist, elite progress counts upgrade levels (all tracks maxed = elite).
+-- (firepower, armor, speed), mod-tree progress toward "elite" and an Open Toolbox button.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankStats = require(script.Parent.TankStats)
 local Toy = require(script.Parent.Toy)
@@ -48,9 +48,9 @@ function TankInfoCard.mount(parent: Instance, openToolbox: () -> ()): Frame
 	chipLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	chipLayout.Padding = UDim.new(0, 6)
 	chipLayout.Parent = chips
-	local line = Config.Garage.PlaceholderLine
-	local lineChip = Toy.chip(chips, line.Name, line.Color, Color3.new(1, 1, 1))
+	local lineChip = Toy.chip(chips, "", Toy.Grey, Color3.new(1, 1, 1))
 	lineChip.LayoutOrder = 1
+	local lineLabel = lineChip:FindFirstChild("Label") :: TextLabel
 	local classChip = Toy.chip(chips, "", Toy.CreamDark)
 	classChip.LayoutOrder = 2
 	local tierChip = Toy.chip(chips, "", Toy.Yellow)
@@ -89,25 +89,24 @@ function TankInfoCard.mount(parent: Instance, openToolbox: () -> ()): Frame
 	toolboxButton = toolbox.holder
 	toolbox.button.Activated:Connect(openToolbox)
 
-	local maxLevels = #TankCatalog.trackOrder * Config.Upgrades.MaxLevel
+	local rows = Config.Mods.Rows
 	local function render(data: PlayerDataTypes.Data)
 		local id = data.SelectedTank
 		local def = TankCatalog.get(id)
-		local upgrades = data.Upgrades[id]
+		local line = TankCatalog.line(def.Line)
 		name.Text = def.DisplayName
+		lineLabel.Text = line.DisplayName
+		lineChip.BackgroundColor3 = line.Color
 		classLabel.Text = def.Class
 		tierLabel.Text = `Tier {Toy.tier(def.Tier)}`
-		for index, count in TankStats.pips(id, upgrades) do
+		for index, count in TankStats.pips(id, Progression.equipped(data, id)) do
 			for p, pip in pipFrames[index] do
 				pip.BackgroundColor3 = if p <= count then Toy.Yellow else Toy.Grey
 			end
 		end
-		local done = 0
-		if upgrades then
-			done = upgrades.Gun + upgrades.Armor + upgrades.Engine
-		end
-		eliteLabel.Text = if done >= maxLevels then "★ ELITE" else `Mods to Elite: {done} / {maxLevels}`
-		fill.Size = UDim2.fromScale(done / maxLevels, 1)
+		local done = Progression.rowsDone(data, id)
+		eliteLabel.Text = if done >= rows then "★ ELITE" else `Mod rows to Elite: {done} / {rows}`
+		fill.Size = UDim2.fromScale(done / rows, 1)
 		fill.Visible = done > 0
 	end
 	ProfileClient.changed:Connect(render)

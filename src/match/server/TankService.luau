@@ -19,7 +19,7 @@ local TankBuilder = require(ReplicatedStorage.Shared.TankBuilder)
 local MatchRoster = require(script.Parent.MatchRoster)
 local TankHealth = require(script.Parent.TankHealth)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
-local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 
@@ -194,12 +194,12 @@ local function buildTank(
 	spawnCFrame: CFrame,
 	color: Color3,
 	tankId: string,
-	upgrades: PlayerDataTypes.UpgradeLevels?,
+	mods: { string }?,
 	name: string,
 	combatant: Combatant.Combatant,
 	owner: Player?
 ): TankBuilder.Tank
-	local tank = TankBuilder.build(spawnCFrame, color, tankId, upgrades)
+	local tank = TankBuilder.build(spawnCFrame, color, tankId, mods)
 	tank.model.Name = name
 	if combatant.team then
 		tank.model:SetAttribute(TeamInfo.Attribute, combatant.team)
@@ -217,7 +217,7 @@ end
 
 local function spawnTank(player: Player, character: Model)
 	despawn(player)
-	-- The tank (and its upgrades) come from saved data, so wait for it to load.
+	-- The tank (and its mods) come from saved data, so wait for it to load.
 	local data = PlayerData.waitFor(player)
 	if not data or player.Character ~= character then
 		return
@@ -234,8 +234,8 @@ local function spawnTank(player: Player, character: Model)
 	humanoid.JumpPower = 0
 
 	local tankId = TankCatalog.normalize(data.SelectedTank)
-	local upgrades = PlayerData.upgradesFor(data, tankId)
-	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), tankId, upgrades, "Tank_" .. player.Name, combatant, player)
+	local mods = Progression.equipped(data, tankId)
+	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), tankId, mods, "Tank_" .. player.Name, combatant, player)
 	tanks[player] = tank
 
 	if not seatDriver(tank, humanoid) and player.Character == character then
@@ -332,9 +332,10 @@ function TankService.liveTanks(): { { tank: TankBuilder.Tank, combatant: Combata
 	return list
 end
 
--- An AI-driven tank at its team's side. The server simulates it (no network owner).
-function TankService.spawnBot(combatant: Combatant.Combatant, tankId: string): TankBuilder.Tank
-	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), TankCatalog.normalize(tankId), nil, combatant.name, combatant, nil)
+-- An AI-driven tank at its team's side, with `mods` equipped. The server simulates it (no
+-- network owner).
+function TankService.spawnBot(combatant: Combatant.Combatant, tankId: string, mods: { string }?): TankBuilder.Tank
+	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), TankCatalog.normalize(tankId), mods, combatant.name, combatant, nil)
 	tank.hull.Anchored = frozen
 	giveOwnership(tank, nil)
 	return tank

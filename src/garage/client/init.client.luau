@@ -15,6 +15,7 @@ local GarageGate = require(script.GarageGate)
 local GarageScene = require(script.GarageScene)
 local LobbyHud = require(script.LobbyHud)
 local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Turntable = require(script.Turntable)
 
@@ -23,8 +24,8 @@ Turntable.start(scene)
 
 local function showSelected()
 	local data = ProfileClient.get()
-	if data then
-		Turntable.show(data.SelectedTank, data.Upgrades[data.SelectedTank])
+	if data and data.SelectedTank ~= "" then
+		Turntable.show(data.SelectedTank, Progression.equipped(data, data.SelectedTank))
 	end
 end
 

@@ -20,13 +20,17 @@ local function roundActive(): boolean
 	return ReplicatedStorage:GetAttribute(RoundSchema.PhaseAttribute) == "Active"
 end
 
--- Give coins and XP; `stat` (optional) is a lifetime Stats counter to bump.
+-- Give coins and XP; `stat` (optional) is a lifetime Stats counter to bump. The XP also
+-- goes to the tank they're driving (its tank XP unlocks mods).
 function Rewards.grant(player: Player, coins: number, xp: number, reason: string, stat: string?)
 	local levelBefore, levelAfter = 0, 0
 	local ok = PlayerData.update(player, function(data)
 		levelBefore = Progression.levelForXP(data.XP)
 		data.Coins += coins
 		data.XP += xp
+		if data.OwnedTanks[data.SelectedTank] then
+			data.TankXP[data.SelectedTank] = (data.TankXP[data.SelectedTank] or 0) + xp
+		end
 		if stat then
 			(data.Stats :: any)[stat] += 1
 		end

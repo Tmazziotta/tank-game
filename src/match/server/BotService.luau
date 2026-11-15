@@ -39,7 +39,7 @@ local function clearTank(bot: Bot)
 end
 
 local function spawnBot(bot: Bot)
-	-- A random tank of the match tier each round (any tier if none is set).
+	-- A random tank (any line) of the match tier each round (any tier if none is set).
 	local tier = ReplicatedStorage:GetAttribute(RoundSchema.MatchTierAttribute)
 	local choices = {}
 	for _, id in TankCatalog.order do
@@ -51,7 +51,12 @@ local function spawnBot(bot: Bot)
 		choices = TankCatalog.order
 	end
 	local tankId = choices[rng:NextInteger(1, #choices)]
-	local tank = TankService.spawnBot(bot.combatant, tankId)
+	-- A random build: one mod from each row (bots play elite tanks).
+	local mods = {}
+	for _, row in TankCatalog.modRows(tankId) do
+		table.insert(mods, row[rng:NextInteger(1, #row)])
+	end
+	local tank = TankService.spawnBot(bot.combatant, tankId, mods)
 	bot.tank = tank
 	bot.brain = BotBrain.new(tank, bot.combatant)
 end

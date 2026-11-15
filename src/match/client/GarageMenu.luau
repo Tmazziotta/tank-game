@@ -1,7 +1,7 @@
 --!strict
--- Counter-pick menu: a 3x3 grid of tanks (columns = class, rows = tier) and a detail panel
--- for the highlighted tank with its stats. In a match you can only swap between your
--- loadout tanks of the match tier (buying and upgrading happen in the Garage). Opens by
+-- Counter-pick menu: your loadout tanks and a detail panel for the highlighted one with its
+-- stats and equipped mods. In a match you can only swap between loadout tanks of the match
+-- tier (buying and modding happen in the Garage). Opens by
 -- itself for each pre-round countdown and closes when the round starts; C toggles it any
 -- time. The server (Hangar) validates the swap and decides whether it happens now or at
 -- your next respawn.
@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local MouseLock = require(script.Parent.MouseLock)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local TouchInput = require(script.Parent.TouchInput)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
@@ -66,10 +67,15 @@ local STATS: { Stat } = {
 	},
 }
 
--- Bars scale against the best fully-upgraded tank, so upgrades visibly grow them.
+-- Bars scale against the best tank with every stat mod on, so mods visibly grow them.
 local statBest: { number } = {}
 do
-	local maxed: PlayerDataTypes.UpgradeLevels = { Gun = Config.Upgrades.MaxLevel, Armor = Config.Upgrades.MaxLevel, Engine = Config.Upgrades.MaxLevel }
+	local maxed: { string } = {}
+	for _, row in Config.Mods.CommonRows do
+		for _, modId in row do
+			table.insert(maxed, modId)
+		end
+	end
 	for row, stat in STATS do
 		local best = 0
 		for _, id in TankCatalog.order do
@@ -131,40 +137,33 @@ end
 local title = text(root, "SWAP TANK", 32, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 36))
 local status = text(root, "", 18, UDim2.new(0, 0, 1, -26), UDim2.new(1, 0, 0, 24))
 
--- Grid
+-- Loadout tiles (one per slot, top to bottom).
 local grid = Instance.new("Frame")
 grid.BackgroundTransparency = 1
 grid.Position = UDim2.fromOffset(0, 46)
 grid.Size = UDim2.fromOffset(GRID_W, BODY_H)
 grid.Parent = root
 
-for col, className in TankClass.order do
-	local header = text(grid, string.upper(TankClass.get(className).DisplayName), 18, UDim2.fromOffset((col - 1) * (TILE_W + GAP), 0), UDim2.fromOffset(TILE_W, 22))
-	header.TextColor3 = MUTED
-end
-
 type Tile = { button: TextButton, stroke: UIStroke, name: TextLabel, info: TextLabel }
-local tiles: { [string]: Tile } = {}
+local tiles: { Tile } = {}
 
-for _, id in TankCatalog.order do
-	local def = TankCatalog.get(id)
-	local col = table.find(TankClass.order, def.Class) or 1
+for slot = 1, Config.Garage.LoadoutSlots do
 	local tile = Instance.new("TextButton")
-	tile.Name = id
+	tile.Name = `Slot{slot}`
 	tile.AutoButtonColor = false
 	tile.Text = ""
 	tile.BackgroundColor3 = PANEL_COLOR
 	tile.BackgroundTransparency = 0.1
-	tile.Position = UDim2.fromOffset((col - 1) * (TILE_W + GAP), 28 + (def.Tier - 1) * (TILE_H + GAP))
-	tile.Size = UDim2.fromOffset(TILE_W, TILE_H)
+	tile.Position = UDim2.fromOffset(0, 28 + (slot - 1) * (TILE_H + GAP))
+	tile.Size = UDim2.fromOffset(GRID_W, TILE_H)
 	tile.Parent = grid
 	corner(tile, 10)
 	local stroke = Instance.new("UIStroke")
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = tile
-	local name = text(tile, def.DisplayName, 22, UDim2.fromOffset(0, 8), UDim2.new(1, 0, 0, 26))
+	local name = text(tile, "", 22, UDim2.fromOffset(0, 8), UDim2.new(1, 0, 0, 26))
 	local info = text(tile, "", 15, UDim2.fromOffset(0, 40), UDim2.new(1, 0, 0, 22))
-	tiles[id] = { button = tile, stroke = stroke, name = name, info = info }
+	tiles[slot] = { button = tile, stroke = stroke, name = name, info = info }
 end
 
 -- Detail panel
@@ -208,15 +207,11 @@ for row, stat in STATS do
 	bars[row] = { base = base, upgraded = upgraded }
 end
 
-type UpgradeRow = { label: TextLabel, buy: TextButton }
-local upgradeRows: { [string]: UpgradeRow } = {}
-for index, track in TankCatalog.trackOrder do
-	local y = 186 + (index - 1) * 34
-	local label = text(panel, "", 16, UDim2.fromOffset(14, y), UDim2.fromOffset(190, 28))
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	local buy = button(panel, UDim2.new(1, -124, 0, y), UDim2.fromOffset(110, 28), 15)
-	upgradeRows[track] = { label = label, buy = buy }
-end
+-- Equipped mods, one line per row of the tree.
+local modsLabel = text(panel, "", 15, UDim2.fromOffset(14, 186), UDim2.new(1, -28, 0, 100))
+modsLabel.TextXAlignment = Enum.TextXAlignment.Left
+modsLabel.TextYAlignment = Enum.TextYAlignment.Top
+modsLabel.TextWrapped = true
 
 local mainButton = button(panel, UDim2.new(0, 14, 1, -42), UDim2.new(1, -28, 0, 32), 20)
 
@@ -225,10 +220,6 @@ local mainButton = button(panel, UDim2.new(0, 14, 1, -42), UDim2.new(1, -28, 0, 
 local focused: string = Config.DefaultTank -- tank shown in the detail panel
 local autoOpened = false
 local busy = false
-
-local function pips(level: number): string
-	return string.rep("●", level) .. string.rep("○", Config.Upgrades.MaxLevel - level)
-end
 
 local function closeHint(): string
 	return if TouchInput.isTouchDevice() then "Tap SWAP to close" else "[C] close"
@@ -264,22 +255,24 @@ local function render()
 	local tier = matchTier()
 	title.Text = if tier > 0 then `SWAP TANK    Tier {tier} match` else "SWAP TANK"
 
-	for id, tile in tiles do
+	for slot, tile in tiles do
+		local id = data.Loadout[slot]
+		tile.button.Visible = id ~= nil
+		if not id then
+			continue
+		end
 		local def = TankCatalog.get(id)
 		local selected = data.SelectedTank == id
-		local inLoadout = table.find(data.Loadout, id) ~= nil
 		local usable = swappable(data, id)
+		tile.name.Text = `{def.DisplayName}  {string.rep("★", def.Tier)}`
 		if selected then
 			tile.info.Text = "DRIVING"
 			tile.info.TextColor3 = GOLD
 		elseif usable then
 			tile.info.Text = "Swap in"
 			tile.info.TextColor3 = UPGRADE_COLOR
-		elseif inLoadout then
-			tile.info.Text = `Tier {def.Tier}`
-			tile.info.TextColor3 = MUTED
 		else
-			tile.info.Text = "Not in loadout"
+			tile.info.Text = `Tier {def.Tier}: not this match's tier`
 			tile.info.TextColor3 = MUTED
 		end
 		tile.name.TextTransparency = if selected or usable then 0 else 0.5
@@ -288,28 +281,20 @@ local function render()
 	end
 
 	local def = TankCatalog.get(focused)
-	local levels = TankCatalog.noUpgrades()
-	local saved = data.Upgrades[focused]
-	if saved then
-		for _, track in TankCatalog.trackOrder do
-			(levels :: any)[track] = (saved :: any)[track] or 0
-		end
-	end
+	local equipped = Progression.equipped(data, focused)
 	local base = TankCatalog.spec(focused, nil)
-	local current = TankCatalog.spec(focused, levels)
+	local current = TankCatalog.spec(focused, equipped)
 	detailName.Text = `{string.upper(def.DisplayName)}  {string.rep("★", def.Tier)}`
-	detailRole.Text = `{TankClass.get(def.Class).DisplayName} · {base.Role}`
+	detailRole.Text = `{TankCatalog.line(def.Line).DisplayName} · {TankClass.get(def.Class).DisplayName}`
 	for row, stat in STATS do
 		bars[row].base.Size = UDim2.fromScale(math.min(stat.value(base) / statBest[row], 1), 1)
 		bars[row].upgraded.Size = UDim2.fromScale(math.min(stat.value(current) / statBest[row], 1), 1)
 	end
-
-	for _, track in TankCatalog.trackOrder do
-		local row = upgradeRows[track]
-		local trackLevel = (levels :: any)[track] :: number
-		row.label.Text = `{TankCatalog.trackName(track)}  {pips(trackLevel)}`
-		row.buy.Visible = false -- upgrades are bought in the Garage
+	local names = {}
+	for _, modId in equipped do
+		table.insert(names, "• " .. TankCatalog.mod(modId).DisplayName)
 	end
+	modsLabel.Text = if #names > 0 then table.concat(names, "\n") else "No mods yet: unlock them in the Garage's Toolbox."
 
 	if data.SelectedTank == focused then
 		mainButton.Text = "Driving"
@@ -317,11 +302,8 @@ local function render()
 	elseif swappable(data, focused) then
 		mainButton.Text = "Drive this tank"
 		mainButton.BackgroundColor3 = BUTTON_COLOR
-	elseif table.find(data.Loadout, focused) then
-		mainButton.Text = `Not this match's tier`
-		mainButton.BackgroundColor3 = DISABLED_COLOR
 	else
-		mainButton.Text = "Not in your loadout"
+		mainButton.Text = "Not this match's tier"
 		mainButton.BackgroundColor3 = DISABLED_COLOR
 	end
 end
@@ -347,21 +329,25 @@ local function close()
 	MouseLock.setReleased(false)
 end
 
-local function request(action: string, track: string?)
+local function request(action: string)
 	if busy then
 		return
 	end
 	busy = true
-	local ok, message = Remotes.GarageRequest:InvokeServer(action, focused, track)
+	local ok, message = Remotes.GarageRequest:InvokeServer(action, focused)
 	busy = false
 	status.Text = if ok then hint() else `Can't do that: {message or "unknown error"}`
 
 end
 
-for id, tile in tiles do
+for slot, tile in tiles do
 	tile.button.Activated:Connect(function()
-		focused = id
-		render()
+		local data = ProfileClient.get()
+		local id = data and data.Loadout[slot]
+		if id then
+			focused = id
+			render()
+		end
 	end)
 end
 mainButton.Activated:Connect(function()

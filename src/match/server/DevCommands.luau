@@ -39,6 +39,16 @@ local commands: { [string]: (...any) -> any } = {
 		end)
 		return PlayerData.get(player)
 	end,
+	-- grantTankXP(playerName, xp, tankId?): add tank XP (default: their selected tank).
+	grantTankXP = function(playerName: string, xp: number, tankId: string?)
+		local player = Players:FindFirstChild(playerName)
+		assert(player and player:IsA("Player"), `no player {playerName}`)
+		PlayerData.update(player, function(data)
+			local id = tankId or data.SelectedTank
+			data.TankXP[id] = (data.TankXP[id] or 0) + xp
+		end)
+		return PlayerData.get(player)
+	end,
 	-- resetData(playerName): wipe a player's saved progress to a fresh profile.
 	resetData = function(playerName: string)
 		local player = Players:FindFirstChild(playerName)

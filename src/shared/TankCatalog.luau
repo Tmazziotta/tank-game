@@ -1,10 +1,10 @@
 --!strict
--- The ownable tanks (Config.Tanks) and their effective stats. A tank's stats are its
--- class's base stats x the tank's own Mods x its upgrade levels. Shared so the server
--- (spawning, combat) and the client (driving, garage UI) compute identical numbers.
+-- The toy lines, their tanks (Config.Tanks), the mod trees and effective stats. A tank's
+-- stats are its class's base stats x its line's Mods x TierScale x the tank's own Mods x
+-- its equipped stat mods. Shared so the server (spawning, combat) and the client (driving,
+-- garage UI) compute identical numbers.
 
 local Config = require(script.Parent.Config)
-local PlayerDataTypes = require(script.Parent.PlayerDataTypes)
 local TankClass = require(script.Parent.TankClass)
 
 export type Mods = {
@@ -17,24 +17,43 @@ export type Mods = {
 }
 
 export type TankDef = {
+	Line: string,
 	Class: string,
 	Tier: number,
+	Parent: string?, -- the tank whose elite unlocks this one (nil for a starter)
 	DisplayName: string,
 	Cost: number,
 	Mods: Mods,
+	ModRows: { { string } }, -- rows 3+ of its mod tree
+}
+
+export type LineDef = {
+	DisplayName: string,
+	Color: Color3,
+	Blurb: string,
+	Mods: Mods,
+}
+
+export type ModDef = {
+	DisplayName: string,
+	Blurb: string,
+	Stats: Mods?,
+	Behavior: string?,
 }
 
 local TankCatalog = {}
 
--- Attributes on a tank model: which tank it is and its upgrade levels.
+-- Attributes on a tank model: which tank it is and its equipped mods (comma-separated).
 TankCatalog.IdAttribute = "TankId"
-TankCatalog.UpgradeAttributes = { Gun = "GunLevel", Armor = "ArmorLevel", Engine = "EngineLevel" } :: { [string]: string }
+TankCatalog.ModsAttribute = "Mods"
 
 TankCatalog.order = Config.TankOrder :: { string }
-TankCatalog.trackOrder = Config.Upgrades.TrackOrder :: { string }
+TankCatalog.lineOrder = Config.Lines.Order :: { string }
 
 local defs: { [string]: TankDef } = Config.Tanks :: any
-local tracks: { [string]: { DisplayName: string, PerLevel: Mods } } = Config.Upgrades.Tracks :: any
+local lines: { [string]: LineDef } = Config.Lines.Defs :: any
+local mods: { [string]: ModDef } = Config.Mods.Defs :: any
+local commonRows: { { string } } = Config.Mods.CommonRows :: any
 
 function TankCatalog.isValid(id: unknown): boolean
 	return type(id) == "string" and defs[id] ~= nil
@@ -51,82 +70,156 @@ function TankCatalog.normalize(id: unknown): string
 	return if TankCatalog.isValid(id) then id :: string else Config.DefaultTank
 end
 
-function TankCatalog.trackName(track: string): string
-	local def = tracks[track]
-	return if def then def.DisplayName else track
+function TankCatalog.isLine(line: unknown): boolean
+	return type(line) == "string" and lines[line] ~= nil
 end
 
--- Tanks every player owns from the start (cost 0).
-function TankCatalog.starters(): { string }
+function TankCatalog.line(line: string): LineDef
+	return lines[line] or lines[TankCatalog.lineOrder[1]]
+end
+
+-- The tier 1 starter of `line`.
+function TankCatalog.starterOf(line: string): string
+	for _, id in TankCatalog.order do
+		local def = defs[id]
+		if def.Line == line and not def.Parent then
+			return id
+		end
+	end
+	return Config.DefaultTank
+end
+
+-- Tanks of `line`, in catalog order.
+function TankCatalog.ofLine(line: string): { string }
 	local list = {}
 	for _, id in TankCatalog.order do
-		if defs[id].Cost <= 0 then
+		if defs[id].Line == line then
 			table.insert(list, id)
 		end
 	end
 	return list
 end
 
-function TankCatalog.noUpgrades(): PlayerDataTypes.UpgradeLevels
-	return { Gun = 0, Armor = 0, Engine = 0 }
+-- Tanks whose Parent is `id` (unlocked by its elite).
+function TankCatalog.children(id: string): { string }
+	local list = {}
+	for _, other in TankCatalog.order do
+		if defs[other].Parent == id then
+			table.insert(list, other)
+		end
+	end
+	return list
 end
 
-local function applyMods(spec: TankClass.Spec, mods: Mods, times: number)
-	if times <= 0 then
-		return
+-- Mod ---------------------------------------------------------------------------------
+
+function TankCatalog.isMod(id: unknown): boolean
+	return type(id) == "string" and mods[id] ~= nil
+end
+
+function TankCatalog.mod(id: string): ModDef
+	return mods[id] or { DisplayName = id, Blurb = "" }
+end
+
+-- The mod tree of tank `id`: Config.Mods.Rows rows of 2 mod ids.
+function TankCatalog.modRows(id: string): { { string } }
+	local rows = table.clone(commonRows)
+	for _, row in TankCatalog.get(id).ModRows do
+		table.insert(rows, row)
 	end
-	local function m(value: number?): number
-		return (value or 1) ^ times
+	return rows
+end
+
+-- Which row of tank `id`'s tree holds mod `modId` (nil if it isn't in the tree).
+function TankCatalog.rowOf(id: string, modId: string): number?
+	for index, row in TankCatalog.modRows(id) do
+		if table.find(row, modId) then
+			return index
+		end
 	end
-	spec.MaxHealth *= m(mods.Health)
-	spec.Damage *= m(mods.Damage)
-	spec.Cooldown *= m(mods.Reload)
-	local speed = m(mods.Speed)
+	return nil
+end
+
+function TankCatalog.encodeMods(list: { string }): string
+	local kept = {}
+	for _, modId in list do
+		if mods[modId] then
+			table.insert(kept, modId)
+		end
+	end
+	return table.concat(kept, ",")
+end
+
+function TankCatalog.decodeMods(text: unknown): { string }
+	local list = {}
+	if type(text) == "string" then
+		for _, modId in string.split(text, ",") do
+			if mods[modId] then
+				table.insert(list, modId)
+			end
+		end
+	end
+	return list
+end
+
+-- Stats --------------------------------------------------------------------------------
+
+local function applyMods(spec: TankClass.Spec, m: Mods)
+	spec.MaxHealth *= m.Health or 1
+	spec.Damage *= m.Damage or 1
+	spec.Cooldown *= m.Reload or 1
+	local speed = m.Speed or 1
 	spec.MaxForwardSpeed *= speed
 	spec.MaxReverseSpeed *= speed
 	spec.DriveAcceleration *= speed
 	spec.TurnRate *= math.sqrt(speed) -- turning improves, but less than straight-line speed
-	spec.TurretTraverseSpeed *= m(mods.Turret)
-	local armor = m(mods.Armor)
+	spec.TurretTraverseSpeed *= m.Turret or 1
+	local armor = m.Armor or 1
 	spec.FrontArmor *= armor
 	spec.SideArmor *= armor
 	spec.RearArmor *= armor
 end
 
--- Effective stats of tank `id` with the given upgrade levels.
-function TankCatalog.spec(id: string, upgrades: PlayerDataTypes.UpgradeLevels?): TankClass.Spec
+-- Effective stats of tank `id` with the given equipped mods.
+function TankCatalog.spec(id: string, equipped: { string }?): TankClass.Spec
 	local def = TankCatalog.get(id)
 	local spec = table.clone(TankClass.get(def.Class))
 	spec.DisplayName = def.DisplayName
-	applyMods(spec, def.Mods, 1)
-	if upgrades then
-		for _, track in TankCatalog.trackOrder do
-			local trackDef = tracks[track]
-			local level = (upgrades :: any)[track]
-			if trackDef and type(level) == "number" then
-				applyMods(spec, trackDef.PerLevel, level)
-			end
+	applyMods(spec, TankCatalog.line(def.Line).Mods)
+	local scale = Config.TierScale[def.Tier] or 1
+	applyMods(spec, { Health = scale, Damage = scale })
+	applyMods(spec, def.Mods)
+	local list: { string } = equipped or {}
+	for _, modId in list do
+		local stats = TankCatalog.mod(modId).Stats
+		if stats and TankCatalog.rowOf(id, modId) then
+			applyMods(spec, stats)
 		end
 	end
 	spec.MaxHealth = math.round(spec.MaxHealth)
 	return spec
 end
 
--- Upgrade levels stored on a tank model.
-function TankCatalog.upgradesOfModel(model: Instance): PlayerDataTypes.UpgradeLevels
-	local levels = TankCatalog.noUpgrades()
-	for track, attribute in TankCatalog.UpgradeAttributes do
-		local value = model:GetAttribute(attribute)
-		if type(value) == "number" then
-			(levels :: any)[track] = value
+-- Equipped mods stored on a tank model.
+function TankCatalog.modsOfModel(model: Instance): { string }
+	return TankCatalog.decodeMods(model:GetAttribute(TankCatalog.ModsAttribute))
+end
+
+-- Behavior mods equipped on a tank model (behavior name -> true).
+function TankCatalog.behaviorsOfModel(model: Instance): { [string]: boolean }
+	local out = {}
+	for _, modId in TankCatalog.modsOfModel(model) do
+		local behavior = TankCatalog.mod(modId).Behavior
+		if behavior then
+			out[behavior] = true
 		end
 	end
-	return levels
+	return out
 end
 
 -- Effective stats of a live tank model, from its attributes.
 function TankCatalog.ofModel(model: Instance): TankClass.Spec
-	return TankCatalog.spec(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute)), TankCatalog.upgradesOfModel(model))
+	return TankCatalog.spec(TankCatalog.normalize(model:GetAttribute(TankCatalog.IdAttribute)), TankCatalog.modsOfModel(model))
 end
 
 return TankCatalog

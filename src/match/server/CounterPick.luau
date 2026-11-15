@@ -15,6 +15,7 @@ local Hangar = require(ServerScriptService.Core.Hangar)
 local MatchRoster = require(script.Parent.MatchRoster)
 local PlayerData = require(ServerScriptService.Core.PlayerData)
 local RoundSchema = require(ReplicatedStorage.Shared.RoundSchema)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankService = require(script.Parent.TankService)
 
@@ -46,14 +47,9 @@ local function refreshTank(player: Player)
 	if not data or not tank then
 		return
 	end
-	local wanted = PlayerData.upgradesFor(data, data.SelectedTank)
-	local current = TankCatalog.upgradesOfModel(tank.model)
-	local same = tank.tankId == data.SelectedTank
-	for _, track in TankCatalog.trackOrder do
-		if (wanted :: any)[track] ~= (current :: any)[track] then
-			same = false
-		end
-	end
+	local wanted = TankCatalog.encodeMods(Progression.equipped(data, data.SelectedTank))
+	local current = TankCatalog.encodeMods(TankCatalog.modsOfModel(tank.model))
+	local same = tank.tankId == data.SelectedTank and wanted == current
 	if not same and canRespawnNow(player) then
 		lastRespawn[player] = os.clock()
 		task.spawn(player.LoadCharacter, player)

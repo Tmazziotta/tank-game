@@ -1,7 +1,8 @@
 --!strict
--- Tank ownership and choice: buy tanks, buy upgrades, pick which loadout tank to drive and
--- what goes in each loadout slot. Clients ask through Remotes.GarageRequest; everything is
--- validated against saved data and Config. One handler serves both places:
+-- Tank ownership and choice: pick a toy line (first join), buy tanks, unlock and equip mods
+-- (spending tank XP), pick which loadout tank to drive and what goes in each loadout slot.
+-- Clients ask through Remotes.GarageRequest(action, id, extra); everything is validated
+-- against saved data and Config (rules in Progression). One handler serves both places:
 --   * In the Garage, everything is allowed. "Select" on a tank outside the loadout puts it
 --     in the slot of the currently selected tank.
 --   * In a Match (Location "Match"), only "Select" between loadout tanks is allowed, plus
@@ -10,6 +11,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Location = require(ReplicatedStorage.Shared.Location)
 local PlayerData = require(script.Parent.PlayerData)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
@@ -29,44 +31,84 @@ local matchRule: Rule? = nil
 local changedCallbacks: { (Player) -> () } = {}
 local started = false
 
-local function buy(player: Player, data: Data, id: string): (boolean, string?)
-	if data.OwnedTanks[id] then
-		return false, "Already owned"
+local function pickLine(player: Player, data: Data, line: unknown): (boolean, string?)
+	if data.Line ~= "" then
+		return false, "You already picked a line"
 	end
-	local def = TankCatalog.get(id)
-	if Progression.levelForXP(data.XP) < Progression.levelForTier(def.Tier) then
-		return false, `Reach level {Progression.levelForTier(def.Tier)}`
+	if not TankCatalog.isLine(line) then
+		return false, "Unknown toy line"
 	end
-	if data.Coins < def.Cost then
-		return false, "Not enough coins"
-	end
+	local starter = TankCatalog.starterOf(line :: string)
 	PlayerData.update(player, function(d)
-		d.Coins -= def.Cost
-		d.OwnedTanks[id] = true
+		d.Line = line :: string
+		d.OwnedTanks[starter] = true
+		d.Loadout = { starter }
+		d.SelectedTank = starter
 	end)
 	return true, nil
 end
 
-local function upgrade(player: Player, data: Data, id: string, track: unknown): (boolean, string?)
-	if type(track) ~= "string" or not table.find(TankCatalog.trackOrder, track) then
-		return false, "Unknown upgrade"
+local function buy(player: Player, data: Data, id: string): (boolean, string?)
+	local ok, message = Progression.canBuy(data, id)
+	if not ok then
+		return false, message
 	end
-	if not data.OwnedTanks[id] then
-		return false, "Tank not owned"
-	end
-	local levels = PlayerData.upgradesFor(data, id)
-	local level = (levels :: any)[track] :: number
-	local cost = Progression.upgradeCost(id, level)
-	if not cost then
-		return false, "Already maxed"
-	end
-	if data.Coins < cost then
-		return false, "Not enough coins"
-	end
+	local cost = Progression.tankCost(id)
 	PlayerData.update(player, function(d)
-		d.Coins -= cost;
-		(levels :: any)[track] = level + 1
-		d.Upgrades[id] = levels
+		d.Coins -= cost
+		d.OwnedTanks[id] = true
+		if #d.Loadout < Config.Garage.LoadoutSlots then
+			table.insert(d.Loadout, id)
+		end
+	end)
+	return true, nil
+end
+
+local function treeOf(d: Data, id: string): PlayerDataTypes.TankMods
+	local tree = d.Mods[id]
+	if not tree then
+		local equipped = {}
+		for row = 1, Config.Mods.Rows do
+			equipped[row] = ""
+		end
+		tree = { Unlocked = {}, Equipped = equipped }
+		d.Mods[id] = tree
+	end
+	return tree
+end
+
+local function unlockMod(player: Player, data: Data, id: string, modId: unknown): (boolean, string?)
+	if not TankCatalog.isMod(modId) then
+		return false, "Unknown mod"
+	end
+	local mod = modId :: string
+	local ok, message, cost = Progression.canUnlockMod(data, id, mod)
+	if not ok then
+		return false, message
+	end
+	local row = TankCatalog.rowOf(id, mod) :: number
+	PlayerData.update(player, function(d)
+		d.TankXP[id] = (d.TankXP[id] or 0) - cost
+		local tree = treeOf(d, id)
+		tree.Unlocked[mod] = true
+		if tree.Equipped[row] == "" then
+			tree.Equipped[row] = mod -- a row's first mod goes straight on
+		end
+	end)
+	return true, nil
+end
+
+local function equipMod(player: Player, data: Data, id: string, modId: unknown): (boolean, string?)
+	if not TankCatalog.isMod(modId) then
+		return false, "Unknown mod"
+	end
+	local mod = modId :: string
+	if not Progression.isUnlocked(data, id, mod) then
+		return false, "Mod not unlocked"
+	end
+	local row = TankCatalog.rowOf(id, mod) :: number
+	PlayerData.update(player, function(d)
+		treeOf(d, id).Equipped[row] = mod
 	end)
 	return true, nil
 end
@@ -121,23 +163,28 @@ local function select(player: Player, data: Data, id: string, inMatch: boolean):
 end
 
 local function onRequest(player: Player, action: unknown, id: unknown, extra: unknown): (boolean, string?)
-	if not TankCatalog.isValid(id) then
-		return false, "Unknown tank"
-	end
 	local data = PlayerData.get(player)
 	if not data then
 		return false, "Data not loaded"
 	end
-	local tankId = id :: string
 	local inMatch = Location.get(player) == "Match"
 	if inMatch and not (type(action) == "string" and MATCH_ACTIONS[action]) then
 		return false, "Do that in the Garage"
 	end
+	if action == "PickLine" then
+		return pickLine(player, data, id) -- id is the line name
+	end
+	if not TankCatalog.isValid(id) then
+		return false, "Unknown tank"
+	end
+	local tankId = id :: string
 	local ok, message
 	if action == "Buy" then
 		ok, message = buy(player, data, tankId)
-	elseif action == "Upgrade" then
-		ok, message = upgrade(player, data, tankId, extra)
+	elseif action == "UnlockMod" then
+		ok, message = unlockMod(player, data, tankId, extra)
+	elseif action == "EquipMod" then
+		ok, message = equipMod(player, data, tankId, extra)
 	elseif action == "Select" then
 		ok, message = select(player, data, tankId, inMatch)
 	elseif action == "SetSlot" then

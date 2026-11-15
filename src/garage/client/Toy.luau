@@ -79,8 +79,10 @@ export type Panel = {
 function Toy.panel(parent: Instance, position: UDim2, size: UDim2, color: Color3?, radius: number?): Panel
 	local holder = Toy.frame(parent, position, size)
 	local shadow = Toy.frame(holder, UDim2.fromOffset(0, Toy.Shadow), UDim2.new(1, 0, 1, -Toy.Shadow), Toy.Brown)
+	shadow.Name = "Shadow"
 	Toy.corner(shadow, radius)
 	local face = Toy.frame(holder, UDim2.new(), UDim2.new(1, 0, 1, -Toy.Shadow), color or Toy.Cream)
+	face.Name = "Face"
 	face.ZIndex = 2
 	Toy.corner(face, radius)
 	local stroke = Toy.outline(face)

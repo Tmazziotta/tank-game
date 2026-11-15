@@ -23,18 +23,17 @@ local PlayerData = {}
 -- Player attribute mirroring their level, for overlays/leaderboards that don't need full data.
 PlayerData.LevelAttribute = "Level"
 
+-- A brand-new player owns nothing until they pick a toy line (Hangar "PickLine").
 local function template(): Data
-	local owned = {}
-	for _, id in TankCatalog.starters() do
-		owned[id] = true
-	end
 	return {
 		Coins = 0,
 		XP = 0,
-		OwnedTanks = owned,
-		Upgrades = {},
-		SelectedTank = Config.DefaultTank,
-		Loadout = TankCatalog.starters(),
+		Line = "",
+		OwnedTanks = {},
+		TankXP = {},
+		Mods = {},
+		SelectedTank = "",
+		Loadout = {},
 		Stats = { Kills = 0, Deaths = 0, Wins = 0, Rounds = 0 },
 	}
 end
@@ -58,18 +57,53 @@ local function sync(player: Player)
 	end
 end
 
--- Repair anything a data change (removed tank, renamed track) could have left invalid.
+-- Repair anything a data change (removed tank or mod, reordered tree) could have left invalid.
 local function sanitize(data: Data)
 	for id in data.OwnedTanks do
 		if not TankCatalog.isValid(id) then
 			data.OwnedTanks[id] = nil
 		end
 	end
-	for _, id in TankCatalog.starters() do
-		data.OwnedTanks[id] = true
+	for id in data.TankXP do
+		if not TankCatalog.isValid(id) then
+			data.TankXP[id] = nil
+		end
 	end
-	-- Loadout: owned, valid, no repeats, exactly LoadoutSlots long (topped up from owned
-	-- tanks in catalog order), and the selection must be one of its tanks.
+	if not TankCatalog.isLine(data.Line) then
+		data.Line = ""
+		for _, id in TankCatalog.order do
+			if data.OwnedTanks[id] then
+				data.Line = TankCatalog.get(id).Line
+				break
+			end
+		end
+	end
+	if data.Line ~= "" then
+		data.OwnedTanks[TankCatalog.starterOf(data.Line)] = true
+	end
+
+	-- Mod trees: only mods in the tank's tree; one equipped entry per row, unlocked or "".
+	for id, tree in data.Mods do
+		if not TankCatalog.isValid(id) then
+			data.Mods[id] = nil
+			continue
+		end
+		local rows = TankCatalog.modRows(id)
+		for modId in tree.Unlocked do
+			if not TankCatalog.rowOf(id, modId) then
+				tree.Unlocked[modId] = nil
+			end
+		end
+		local equipped: { string } = {}
+		for row = 1, Config.Mods.Rows do
+			local modId = tree.Equipped[row]
+			local valid = type(modId) == "string" and rows[row] ~= nil and table.find(rows[row], modId) ~= nil and tree.Unlocked[modId] == true
+			equipped[row] = if valid then modId else ""
+		end
+		tree.Equipped = equipped
+	end
+
+	-- Loadout: owned, valid, no repeats, at most LoadoutSlots; never empty if they own a tank.
 	local loadout: { string } = {}
 	local saved: { string } = data.Loadout or {}
 	for _, id in saved do
@@ -77,27 +111,17 @@ local function sanitize(data: Data)
 			table.insert(loadout, id)
 		end
 	end
-	for _, id in TankCatalog.order do
-		if #loadout < Config.Garage.LoadoutSlots and data.OwnedTanks[id] and not table.find(loadout, id) then
-			table.insert(loadout, id)
-		end
-	end
-	-- Keep an owned selection (saves from before loadouts): swap it in for the same class.
-	local selected = data.SelectedTank
-	if TankCatalog.isValid(selected) and data.OwnedTanks[selected] and not table.find(loadout, selected) then
-		local class = TankCatalog.get(selected).Class
-		local slot = #loadout
-		for index, id in loadout do
-			if TankCatalog.get(id).Class == class then
-				slot = index
+	if #loadout == 0 then
+		for _, id in TankCatalog.order do
+			if data.OwnedTanks[id] then
+				table.insert(loadout, id)
 				break
 			end
 		end
-		loadout[slot] = selected
 	end
 	data.Loadout = loadout
 	if not table.find(loadout, data.SelectedTank) then
-		data.SelectedTank = if table.find(loadout, Config.DefaultTank) then Config.DefaultTank else loadout[1]
+		data.SelectedTank = loadout[1] or ""
 	end
 end
 
@@ -182,20 +206,6 @@ function PlayerData.update(player: Player, mutate: (Data) -> ()): boolean
 	mutate(dataOf(profile))
 	sync(player)
 	return true
-end
-
-function PlayerData.upgradesFor(data: Data, tankId: string): PlayerDataTypes.UpgradeLevels
-	local levels = TankCatalog.noUpgrades()
-	local saved = data.Upgrades[tankId]
-	if saved then
-		for _, track in TankCatalog.trackOrder do
-			local value = (saved :: any)[track]
-			if type(value) == "number" then
-				(levels :: any)[track] = value
-			end
-		end
-	end
-	return levels
 end
 
 -- Wipe the player's progress back to a brand-new profile (testing / support).
