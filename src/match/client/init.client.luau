@@ -12,7 +12,7 @@ end
 local GarageMenu = require(script.GarageMenu)
 local HazardEffects = require(script.HazardEffects)
 local MatchGate = require(script.MatchGate)
-local ProfileClient = require(script.ProfileClient)
+local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
 local ProgressHud = require(script.ProgressHud)
 local RoundHud = require(script.RoundHud)
 local Scope = require(script.Scope)

@@ -8,7 +8,7 @@ local TweenService = game:GetService("TweenService")
 local MatchGate = require(script.Parent.MatchGate)
 local PlayerDataTypes = require(ReplicatedStorage.Shared.PlayerDataTypes)
 local Progression = require(ReplicatedStorage.Shared.Progression)
-local ProfileClient = require(script.Parent.ProfileClient)
+local ProfileClient = require(ReplicatedStorage.Shared.ProfileClient)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 type RewardInfo = { reason: string, coins: number, xp: number, levelUp: number? }

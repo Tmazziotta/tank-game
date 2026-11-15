@@ -237,6 +237,18 @@ local Config = {
 		DevMode = RunService:IsStudio(),
 	},
 
+	-- The Garage: a kid's desk with your tank on a cardboard turntable (built per client).
+	Garage = {
+		ScenePosition = Vector3.new(0, 400, 3000), -- desk-top center, far from any arena
+		TankColor = Color3.fromRGB(110, 190, 120), -- display paint until Dress Up exists
+		SpinSpeed = math.rad(18), -- idle turntable spin, per second
+		DragSpeed = math.rad(0.45), -- turntable yaw per pixel dragged
+		SpinResumeDelay = 1.5, -- seconds after a drag before the idle spin resumes
+		CameraOffset = Vector3.new(0, 11, 30), -- from the turntable center
+		CameraLookHeight = 5, -- camera aims this far above the turntable center
+		FieldOfView = 50,
+	},
+
 	Maps = {
 		Rotation = { "Town", "Dockyard", "Orchard" }, -- one map per round, in this order
 		BoundaryHeight = 14, -- indestructible arena walls
