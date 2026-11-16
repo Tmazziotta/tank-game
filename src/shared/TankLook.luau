@@ -61,11 +61,49 @@ local function treads(c: Ctx)
 	end
 end
 
+-- Brick: square tread blocks built of bricks, with square drive blocks on the outside.
+local function brickTreads(c: Ctx, length: number, height: number)
+	for _, side in { -1, 1 } do
+		Style.slab(c, c.hull, "Tread", "Dark", V(2.6, height, length), c.at(3.6 * side, height / 2 + 0.1, 0))
+		local step = length / 3
+		for i = 0, 2 do
+			local z = -length / 2 + step * (i + 0.5)
+			piece(c, c.hull, "DriveBlock", "Box", "Second", V(0.5, height * 0.55, step * 0.6), c.at(4.95 * side, height / 2 + 0.1, z))
+		end
+	end
+end
+
+-- Foam: fat squishy rollers (ellipsoids) a side, on a soft foam side bar.
+local function foamRollers(c: Ctx, zs: { number }, diameter: number)
+	for _, side in { -1, 1 } do
+		for _, z in zs do
+			piece(c, c.hull, "Roller", "Round", "Trim", V(1.9, diameter, diameter), c.at(4.0 * side, diameter / 2, z))
+			piece(c, c.hull, "RollerHub", "Ball", "Dark", V(0.8, 1.0, 1.0), c.at(4.85 * side, diameter / 2, z))
+		end
+		piece(c, c.hull, "RollerBar", "Tube", "Dark", V(zs[#zs] - zs[1], 0.9, 0.9), c.at(3.4 * side, diameter / 2, (zs[1] + zs[#zs]) / 2) * ALONG_Z)
+	end
+end
+
 local TRACKS: { [string]: (Ctx) -> () } = {
-	-- Rounded track pods with road wheels.
-	Treads = treads,
-	-- Three big wheels a side: quick little scouts.
+	-- Rounded track pods with road wheels (Brick: brick tread blocks; Foam: rollers).
+	Treads = function(c: Ctx)
+		if c.line == "Brick" then
+			brickTreads(c, 10.4, 3.0)
+		elseif c.line == "Foam" then
+			foamRollers(c, { -3.9, -1.3, 1.3, 3.9 }, 2.9)
+		else
+			treads(c)
+		end
+	end,
+	-- Three big wheels a side: quick little scouts (Brick: short tall tread blocks).
 	Wheels = function(c: Ctx)
+		if c.line == "Brick" then
+			brickTreads(c, 9.0, 3.2)
+			return
+		elseif c.line == "Foam" then
+			foamRollers(c, { -3.6, 0, 3.6 }, 3.5)
+			return
+		end
 		for _, side in { -1, 1 } do
 			for _, z in { -3.6, 0, 3.6 } do
 				piece(c, c.hull, "Wheel", "Tube", "Dark", V(1.4, 3.2, 3.2), c.at(4.2 * side, 1.6, z))
@@ -76,7 +114,17 @@ local TRACKS: { [string]: (Ctx) -> () } = {
 	end,
 	-- Treads behind armor skirts: heavies.
 	Skirted = function(c: Ctx)
-		treads(c)
+		if c.line == "Brick" then
+			brickTreads(c, 10.8, 3.0)
+		elseif c.line == "Foam" then
+			foamRollers(c, { -4.0, -1.35, 1.35, 4.0 }, 2.9)
+			for _, side in { -1, 1 } do
+				piece(c, c.hull, "SkirtNoodle", "Tube", "Noodle", V(10.6, 1.6, 1.6), c.at(5.3 * side, 2.9, 0) * ALONG_Z)
+			end
+			return
+		else
+			treads(c)
+		end
 		for _, side in { -1, 1 } do
 			Style.slab(c, c.hull, "Skirt", "Main", V(0.6, 2.0, 10.6), c.at(5.25 * side, 2.2, 0))
 			piece(c, c.hull, "SkirtEdge", "Box", "Second", V(0.7, 0.4, 10.6), c.at(5.25 * side, 1.2, 0))
@@ -138,18 +186,30 @@ local TURRETS: { [string]: (Ctx) -> () } = {
 		Style.slab(c, c.turret, "TurretBody", "Main", V(5.4, 1.8, 5.2), c.at(0, 4.7, -0.5))
 		Style.pegs(c, c.turret, V(5.4, 1.8, 5.2), c.at(0, 4.7, -0.5), 3)
 		Style.slab(c, c.turret, "Bustle", "Second", V(4.4, 1.2, 1.4), c.at(0, 4.6, 2.6))
-		piece(c, c.turret, "Hatch", "Box", "Second", V(2.0, 0.4, 2.0), c.at(-1.0, 5.8, 0.2))
 		piece(c, c.turret, "Mantlet", "Box", "Dark", V(2.2, 1.4, 0.7), c.at(0, 5.0, -3.3))
-		c.turretTop = 5.6
+		if c.line == "Brick" then
+			-- Stepped: a smaller course stacked on top, hatch on that.
+			Style.slab(c, c.turret, "TurretStep", "Second", V(3.8, 0.9, 3.4), c.at(0, 6.05, 0))
+			piece(c, c.turret, "Hatch", "Box", "Main", V(1.6, 0.4, 1.6), c.at(-0.6, 6.7, 0.3))
+			c.turretTop = 6.5
+		else
+			piece(c, c.turret, "Hatch", "Box", "Second", V(2.0, 0.4, 2.0), c.at(-1.0, 5.8, 0.2))
+			c.turretTop = 5.6
+		end
 	end,
 	-- Two stacked blocks with a little cupola: a tall tower.
 	Tall = function(c: Ctx)
 		Style.slab(c, c.turret, "TurretBody", "Main", V(5.0, 1.6, 5.0), c.at(0, 4.6, -0.6))
 		Style.pegs(c, c.turret, V(5.0, 1.6, 5.0), c.at(0, 4.6, -0.6), 3)
 		Style.slab(c, c.turret, "TurretTop", "Second", V(3.6, 1.4, 3.6), c.at(0, 6.1, -0.2))
-		piece(c, c.turret, "Cupola", "Tube", "Dark", V(0.6, 1.6, 1.6), c.at(0.8, 7.1, 0.2) * ALONG_Y)
 		piece(c, c.turret, "Mantlet", "Box", "Dark", V(2.0, 1.4, 0.7), c.at(0, 5.0, -3.4))
-		c.turretTop = 7.4
+		if c.line == "Brick" then
+			Style.slab(c, c.turret, "TurretCap", "Main", V(2.2, 0.9, 2.2), c.at(0, 7.25, 0))
+			c.turretTop = 7.7
+		else
+			piece(c, c.turret, "Cupola", "Tube", "Dark", V(0.6, 1.6, 1.6), c.at(0.8, 7.1, 0.2) * ALONG_Y)
+			c.turretTop = 7.4
+		end
 	end,
 	-- Wide, flat turret with a big rear bustle: a heavy's.
 	Wide = function(c: Ctx)
@@ -158,6 +218,10 @@ local TURRETS: { [string]: (Ctx) -> () } = {
 		Style.slab(c, c.turret, "Bustle", "Second", V(5.6, 1.2, 2.0), c.at(0, 4.55, 3.1))
 		piece(c, c.turret, "Mantlet", "Box", "Dark", V(2.6, 1.8, 0.9), c.at(0, 5.0, -3.6))
 		c.turretTop = 5.4
+		if c.line == "Brick" then
+			Style.slab(c, c.turret, "TurretStep", "Second", V(4.6, 0.8, 3.8), c.at(0, 5.75, 0))
+			c.turretTop = 6.2
+		end
 	end,
 	-- A plush head with a snout.
 	Head = function(c: Ctx)
@@ -216,10 +280,12 @@ local GUNS: { [string]: (Ctx) -> number } = {
 	end,
 	-- Foam blaster barrel: fat plastic tube, foam dart nose poking out.
 	Dart = function(c: Ctx): number
-		piece(c, c.barrel, "Gun", "Tube", "Trim", V(5.6 * c.L, 1.3 * c.W, 1.3 * c.W), c.at(0, 5.0, c.gunAt(2.8)) * ALONG_Z)
-		piece(c, c.barrel, "Ring", "Tube", "Main", V(0.6, 1.6 * c.W, 1.6 * c.W), c.at(0, 5.0, c.gunAt(5.3)) * ALONG_Z)
-		piece(c, c.barrel, "DartTip", "Ball", "Foam", V(1.1 * c.W, 1.1 * c.W, 1.1 * c.W), c.at(0, 5.0, c.gunAt(5.75)))
-		return 6.2
+		-- Oversized: a fat capsule barrel with a chunky muzzle ring and a big dart tip.
+		piece(c, c.barrel, "Gun", "Tube", "Trim", V(5.4 * c.L, 2.8 * c.W, 2.8 * c.W), c.at(0, 5.0, c.gunAt(2.9)) * ALONG_Z)
+		piece(c, c.barrel, "GunBack", "Ball", "Trim", V(2.8 * c.W, 2.8 * c.W, 2.8 * c.W), c.at(0, 5.0, c.gunAt(0.2)))
+		piece(c, c.barrel, "Ring", "Tube", "Main", V(0.9, 3.4 * c.W, 3.4 * c.W), c.at(0, 5.0, c.gunAt(5.4)) * ALONG_Z)
+		piece(c, c.barrel, "DartTip", "Ball", "Foam", V(2.2 * c.W, 2.2 * c.W, 2.2 * c.W), c.at(0, 5.0, c.gunAt(6.0)))
+		return 6.6
 	end,
 	-- Soft fabric snout with stitched bands and a pom on the end.
 	Snout = function(c: Ctx): number

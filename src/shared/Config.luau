@@ -169,14 +169,15 @@ local Config = {
 			},
 		},
 		Materials = {
-			Brick = Enum.Material.Plastic,
+			Brick = Enum.Material.SmoothPlastic, -- glossy (see Reflectance)
 			Plush = Enum.Material.Fabric,
-			Foam = Enum.Material.SmoothPlastic, -- blaster shell; "Foam" parts use FoamMaterial
+			Foam = Enum.Material.Rubber, -- fully matte
 		},
+		Reflectance = { Brick = 0.12, Plush = 0, Foam = 0 },
 		FoamMaterial = Enum.Material.Rubber,
 		BrickSeam = 0.22, -- Brick blocks shrink by this so the joins between them show
 		Brick = { CourseHeight = 0.9, BrickLength = 2.6, BrickWidth = 5 }, -- slab brick sizes
-		Foam = { EdgeRound = 0.4, NoodleSize = 1.3 }, -- shell edge radius (x thinner side), bumper tube
+		Foam = { EdgeRound = 0.4, NoodleSize = 1.9 }, -- shell edge radius (x thinner side), bumper tube
 		Defaults = {
 			Brick = {
 				Light = { Tracks = "Wheels", Hull = "Slab", Turret = "Box", Gun = "Plain", Extras = { "Antenna" } },

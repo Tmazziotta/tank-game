@@ -1,11 +1,12 @@
 --!strict
 -- Line styling for tank parts. The parts kit (TankLook) asks for generic shapes in a role
 -- color; each line turns them into its own toy look:
---   Brick: hard plastic. Big blocks (slabs) are stacked from staggered bricks with wide
---          seams and peg holes on their sides; round shapes become blocks too.
+--   Brick: glossy hard plastic, all square. Big blocks (slabs) are stacked from staggered
+--          bricks with wide seams and peg holes on their sides; every round shape (balls,
+--          tubes, ellipsoids) becomes a block.
 --   Plush: fabric; boxes become soft pillows (rounded) and wedges become plump rounds.
---   Foam:  glossy blaster plastic with rounded-edge shells, ringed by matte foam
---          "pool noodle" bumpers; wedges become soft round noses.
+--   Foam:  fully matte, all capsule: slabs are rounded shells with round ends, decks are
+--          ringed by thick "pool noodle" bumpers; wedges become soft round noses.
 -- Every piece is decoration (no collision, no mass) welded to a physics anchor.
 
 local Config = require(script.Parent.Config)
@@ -14,7 +15,8 @@ local TankLookStyle = {}
 
 -- Box/Wedge: blocks. Round: ellipsoid. Pill: rounded block. Ball: sphere.
 -- Tube: cylinder along the part's X axis (size = length, diameter, diameter).
-export type Shape = "Box" | "Wedge" | "Round" | "Pill" | "Ball" | "Tube"
+-- Hole: a Tube that stays round in every line (Brick peg holes).
+export type Shape = "Box" | "Wedge" | "Round" | "Pill" | "Ball" | "Tube" | "Hole"
 -- Palette slots (Config.Looks.Palettes) plus Glow (lights).
 export type Role = "Main" | "Second" | "Trim" | "Dark" | "Light" | "Foam" | "Noodle" | "Glow"
 
@@ -26,7 +28,7 @@ export type Kit = {
 }
 
 local ROUNDED: { [string]: { [string]: string } } = {
-	Brick = { Round = "Box", Pill = "Box", Ball = "Box" },
+	Brick = { Round = "Box", Pill = "Box", Ball = "Box", Tube = "Box" },
 	Plush = { Box = "Pill", Wedge = "Round" },
 	Foam = { Wedge = "Round" },
 }
@@ -54,16 +56,14 @@ end
 -- One decorative piece, welded to `anchor`. `size` is in layout units (scaled by kit.k);
 -- `cframe` is already in world space (from kit.at).
 function TankLookStyle.piece(kit: Kit, anchor: BasePart, name: string, shape: Shape, role: Role, size: Vector3, cframe: CFrame): BasePart
-	-- Lights keep their exact shape in every line.
-	local keep = role == "Glow"
-	local styled = if keep then shape else (ROUNDED[kit.line] or {})[shape] or shape
+	local styled = (ROUNDED[kit.line] or {})[shape] or shape
 	local scaled = size * kit.k
 	local part: BasePart
 	if styled == "Wedge" then
 		part = Instance.new("WedgePart")
 	else
 		local p = Instance.new("Part")
-		p.Shape = if styled == "Tube" then Enum.PartType.Cylinder elseif styled == "Ball" then Enum.PartType.Ball else Enum.PartType.Block
+		p.Shape = if styled == "Tube" or styled == "Hole" then Enum.PartType.Cylinder elseif styled == "Ball" then Enum.PartType.Ball else Enum.PartType.Block
 		part = p
 	end
 	if kit.line == "Brick" and (styled == "Box" or styled == "Wedge") then
@@ -75,6 +75,9 @@ function TankLookStyle.piece(kit: Kit, anchor: BasePart, name: string, shape: Sh
 	part.CFrame = cframe
 	part.Color = color(kit, role)
 	part.Material = material(kit, role)
+	if role ~= "Glow" then
+		part.Reflectance = (Config.Looks.Reflectance :: any)[kit.line] or 0
+	end
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.CanCollide = false
@@ -127,17 +130,24 @@ local function bricks(kit: Kit, anchor: BasePart, name: string, role: Role, size
 	end
 end
 
--- Foam: a box with rounded long edges (extruded along Z): two crossed cores + 4 tubes.
+-- Foam: a capsule-ish shell: a box with rounded long edges (two crossed cores + 4 tubes)
+-- and rounded (ellipsoid) ends front and back.
 local function shell(kit: Kit, anchor: BasePart, name: string, role: Role, size: Vector3, cframe: CFrame)
 	local r = math.min(size.X, size.Y) * Config.Looks.Foam.EdgeRound
-	TankLookStyle.piece(kit, anchor, name, "Box", role, Vector3.new(size.X - 2 * r, size.Y, size.Z), cframe)
-	TankLookStyle.piece(kit, anchor, name, "Box", role, Vector3.new(size.X, size.Y - 2 * r, size.Z), cframe)
+	local cap = math.min(size.Z * 0.25, math.min(size.X, size.Y) * 0.5)
+	local core = size.Z - 2 * cap
+	TankLookStyle.piece(kit, anchor, name, "Box", role, Vector3.new(size.X - 2 * r, size.Y, core), cframe)
+	TankLookStyle.piece(kit, anchor, name, "Box", role, Vector3.new(size.X, size.Y - 2 * r, core), cframe)
 	local along = CFrame.Angles(0, math.rad(90), 0)
 	for _, sx in { -1, 1 } do
 		for _, sy in { -1, 1 } do
 			local at = offset(kit, cframe, sx * (size.X / 2 - r), sy * (size.Y / 2 - r), 0) * along
-			TankLookStyle.piece(kit, anchor, name, "Tube", role, Vector3.new(size.Z, 2 * r, 2 * r), at)
+			TankLookStyle.piece(kit, anchor, name, "Tube", role, Vector3.new(core, 2 * r, 2 * r), at)
 		end
+	end
+	for _, sz in { -1, 1 } do
+		local at = offset(kit, cframe, 0, 0, sz * (core / 2))
+		TankLookStyle.piece(kit, anchor, name, "Round", role, Vector3.new(size.X, size.Y, 2 * cap), at)
 	end
 end
 
@@ -163,7 +173,7 @@ function TankLookStyle.pegs(kit: Kit, anchor: BasePart, size: Vector3, cframe: C
 		for i = 1, count do
 			local z = -size.Z / 2 + size.Z * (i - 0.5) / count
 			local at = offset(kit, cframe, side * (size.X / 2 - 0.08), 0, z)
-			TankLookStyle.piece(kit, anchor, "PegHole", "Tube", "Dark", Vector3.new(0.3, d, d), at)
+			TankLookStyle.piece(kit, anchor, "PegHole", "Hole", "Dark", Vector3.new(0.3, d, d), at)
 		end
 	end
 end
