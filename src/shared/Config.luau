@@ -529,6 +529,21 @@ local Config = {
 		LiveInterval = 0.25, -- seconds between team alive/health updates to clients
 	},
 
+	-- How teams show in a match (DESIGN: Team identity): an outline + nameplate color relative
+	-- to you. Blue vs orange-red stays distinct under protan/deutan/tritan simulation
+	-- (CIELAB difference > 100 for each).
+	TeamIdentity = {
+		Ally = Color3.fromRGB(45, 150, 255),
+		Enemy = Color3.fromRGB(255, 95, 35),
+		OutlineTransparency = 0,
+		-- Tint over the line's paint: faint up close, stronger far away so distant tanks
+		-- (tiny on phones) still read as ally / enemy.
+		FillNear = 0.85,
+		FillFar = 0.45,
+		FillNearDistance = 60,
+		FillFarDistance = 260,
+	},
+
 	Teams = {
 		Order = { "Red", "Blue" },
 		Red = { DisplayName = "Red", Color = Color3.fromRGB(255, 110, 100) },

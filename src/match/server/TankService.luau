@@ -34,7 +34,6 @@ type Record = {
 
 local TankService = {}
 
-local NEUTRAL_COLOR = Color3.fromRGB(200, 200, 210)
 local WRECK_COLOR = Color3.fromRGB(38, 36, 40)
 
 local tanks: { [Player]: TankBuilder.Tank } = {}
@@ -77,9 +76,6 @@ local function chooseSpawn(team: string?): CFrame
 	return best
 end
 
-local function colorFor(team: string?): Color3
-	return if team then TeamInfo.color(team) else NEUTRAL_COLOR
-end
 
 -- Remove a tank without a wreck (player left, round reset).
 local function despawn(player: Player)
@@ -192,14 +188,13 @@ end
 
 local function buildTank(
 	spawnCFrame: CFrame,
-	color: Color3,
 	tankId: string,
 	mods: { string }?,
 	name: string,
 	combatant: Combatant.Combatant,
 	owner: Player?
 ): TankBuilder.Tank
-	local tank = TankBuilder.build(spawnCFrame, color, tankId, mods)
+	local tank = TankBuilder.build(spawnCFrame, tankId, mods)
 	tank.model.Name = name
 	if combatant.team then
 		tank.model:SetAttribute(TeamInfo.Attribute, combatant.team)
@@ -235,7 +230,7 @@ local function spawnTank(player: Player, character: Model)
 
 	local tankId = TankCatalog.normalize(data.SelectedTank)
 	local mods = Progression.equipped(data, tankId)
-	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), tankId, mods, "Tank_" .. player.Name, combatant, player)
+	local tank = buildTank(chooseSpawn(combatant.team), tankId, mods, "Tank_" .. player.Name, combatant, player)
 	tanks[player] = tank
 
 	if not seatDriver(tank, humanoid) and player.Character == character then
@@ -335,7 +330,7 @@ end
 -- An AI-driven tank at its team's side, with `mods` equipped. The server simulates it (no
 -- network owner).
 function TankService.spawnBot(combatant: Combatant.Combatant, tankId: string, mods: { string }?): TankBuilder.Tank
-	local tank = buildTank(chooseSpawn(combatant.team), colorFor(combatant.team), TankCatalog.normalize(tankId), mods, combatant.name, combatant, nil)
+	local tank = buildTank(chooseSpawn(combatant.team), TankCatalog.normalize(tankId), mods, combatant.name, combatant, nil)
 	tank.hull.Anchored = frozen
 	giveOwnership(tank, nil)
 	return tank
@@ -353,7 +348,7 @@ end
 
 -- Studio testing: an ownerless, undriven tank to shoot at.
 function TankService.spawnDummy(spawnCFrame: CFrame): Model
-	local tank = buildTank(spawnCFrame, NEUTRAL_COLOR, Config.DefaultTank, nil, "Dummy", Combatant.bot("Dummy"), nil)
+	local tank = buildTank(spawnCFrame, Config.DefaultTank, nil, "Dummy", Combatant.bot("Dummy"), nil)
 	giveOwnership(tank, nil)
 	TankHealth.endProtection(tank.model)
 	return tank.model

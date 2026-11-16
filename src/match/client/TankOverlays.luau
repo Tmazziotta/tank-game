@@ -1,12 +1,14 @@
 --!strict
--- World-space overlays on live tanks: a name + health billboard over other players'
--- tanks, and a bubble around any tank that still has spawn protection. Reads the
--- attributes the server writes on each tank model.
+-- World-space overlays on live tanks: a team outline (Highlight) and a name + health
+-- billboard on every other tank, colored ally / enemy relative to you, and a bubble around
+-- any tank that still has spawn protection. Reads the attributes the server writes on each
+-- tank model. Allies' outline and tag show through walls; enemies' don't (no wallhack).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local TankCatalog = require(ReplicatedStorage.Shared.TankCatalog)
 local TankSchema = require(ReplicatedStorage.Shared.TankSchema)
 local TeamInfo = require(ReplicatedStorage.Shared.TeamInfo)
@@ -20,6 +22,7 @@ local BUBBLE_SIZE = 17
 
 type Overlay = {
 	hull: BasePart,
+	outline: Highlight?,
 	billboard: BillboardGui?,
 	fill: Frame?,
 	bubble: Part,
@@ -37,16 +40,38 @@ local function displayName(model: Model): string
 	return if owner then owner.DisplayName else model.Name
 end
 
-local function makeBillboard(model: Model, hull: BasePart): (BillboardGui, Frame)
+-- Whether `model` fights on the local player's team (false with no teams, e.g. free-for-all).
+local function isAlly(model: Model): boolean
+	local team = model:GetAttribute(TeamInfo.Attribute)
+	local mine = localPlayer.Team
+	local info = if type(team) == "string" then TeamInfo.get(team) else nil
+	return info ~= nil and mine ~= nil and info.DisplayName == mine.Name
+end
+
+local function sideColor(ally: boolean): Color3
+	return if ally then Config.TeamIdentity.Ally else Config.TeamIdentity.Enemy
+end
+
+local function makeOutline(model: Model, ally: boolean): Highlight
+	local outline = Instance.new("Highlight")
+	outline.Name = "TeamOutline"
+	outline.Adornee = model
+	outline.OutlineColor = sideColor(ally)
+	outline.FillColor = sideColor(ally)
+	outline.OutlineTransparency = Config.TeamIdentity.OutlineTransparency
+	outline.FillTransparency = Config.TeamIdentity.FillNear
+	outline.DepthMode = if ally then Enum.HighlightDepthMode.AlwaysOnTop else Enum.HighlightDepthMode.Occluded
+	outline.Parent = effects
+	return outline
+end
+
+local function makeBillboard(model: Model, hull: BasePart, ally: boolean): (BillboardGui, Frame)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "TankLabel"
 	billboard.Adornee = hull
 	billboard.Size = UDim2.fromOffset(130, 36)
 	billboard.StudsOffset = Vector3.new(0, 8, 0)
 	-- Teammates' tags show through walls; enemies' don't (no free wallhack in elimination).
-	local team = model:GetAttribute(TeamInfo.Attribute)
-	local mine = localPlayer.Team
-	local ally = type(team) == "string" and mine ~= nil and (TeamInfo.get(team) :: any).DisplayName == mine.Name
 	billboard.AlwaysOnTop = ally
 	billboard.MaxDistance = 600
 	billboard.ResetOnSpawn = false
@@ -56,7 +81,7 @@ local function makeBillboard(model: Model, hull: BasePart): (BillboardGui, Frame
 	name.BackgroundTransparency = 1
 	name.Font = Enum.Font.FredokaOne
 	name.TextSize = 16
-	name.TextColor3 = if type(team) == "string" then TeamInfo.color(team) else Color3.new(1, 1, 1)
+	name.TextColor3 = sideColor(ally)
 	name.TextStrokeTransparency = 0.4
 	name.Text = `{displayName(model)} - {TankCatalog.ofModel(model).DisplayName}`
 	name.Parent = billboard
@@ -112,6 +137,9 @@ local function detach(model: Instance)
 		if overlay.billboard then
 			overlay.billboard:Destroy()
 		end
+		if overlay.outline then
+			overlay.outline:Destroy()
+		end
 		overlay.bubble:Destroy()
 	end
 end
@@ -125,16 +153,29 @@ local function attach(model: Instance)
 		return
 	end
 	local mine = model:GetAttribute(TankSchema.OwnerAttribute) == localPlayer.UserId
-	local billboard, fill = nil, nil
+	local billboard, fill, outline = nil, nil, nil
 	if not mine then
-		billboard, fill = makeBillboard(model, hull)
+		local ally = isAlly(model)
+		billboard, fill = makeBillboard(model, hull, ally)
+		outline = makeOutline(model, ally)
 	end
-	overlays[model] = { hull = hull, billboard = billboard, fill = fill, bubble = makeBubble() }
+	overlays[model] = { hull = hull, outline = outline, billboard = billboard, fill = fill, bubble = makeBubble() }
+end
+
+local function fillFor(distance: number): number
+	local cfg = Config.TeamIdentity
+	local t = math.clamp((distance - cfg.FillNearDistance) / (cfg.FillFarDistance - cfg.FillNearDistance), 0, 1)
+	return cfg.FillNear + (cfg.FillFar - cfg.FillNear) * t
 end
 
 local function update()
 	local now = workspace:GetServerTimeNow()
+	local eye = workspace.CurrentCamera.CFrame.Position
 	for model, overlay in overlays do
+		local outline = overlay.outline
+		if outline then
+			outline.FillTransparency = fillFor((overlay.hull.Position - eye).Magnitude)
+		end
 		local fill = overlay.fill
 		if fill then
 			local health = model:GetAttribute(TankSchema.HealthAttribute)

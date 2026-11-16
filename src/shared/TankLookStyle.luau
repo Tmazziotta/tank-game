@@ -15,13 +15,12 @@ local TankLookStyle = {}
 -- Box/Wedge: blocks. Round: ellipsoid. Pill: rounded block. Ball: sphere.
 -- Tube: cylinder along the part's X axis (size = length, diameter, diameter).
 export type Shape = "Box" | "Wedge" | "Round" | "Pill" | "Ball" | "Tube"
--- Palette slots (Config.Looks.Palettes) plus Accent (team / line color) and Glow (lights).
-export type Role = "Main" | "Second" | "Trim" | "Dark" | "Light" | "Foam" | "Noodle" | "Accent" | "Glow"
+-- Palette slots (Config.Looks.Palettes) plus Glow (lights).
+export type Role = "Main" | "Second" | "Trim" | "Dark" | "Light" | "Foam" | "Noodle" | "Glow"
 
 export type Kit = {
 	model: Model,
 	line: string,
-	accent: Color3,
 	at: (x: number, y: number, z: number) -> CFrame, -- tank-local layout units -> world
 	k: number, -- class scale
 }
@@ -33,9 +32,6 @@ local ROUNDED: { [string]: { [string]: string } } = {
 }
 
 local function color(kit: Kit, role: Role): Color3
-	if role == "Accent" then
-		return kit.accent
-	end
 	local palette = (Config.Looks.Palettes :: any)[kit.line] or Config.Looks.Palettes.Brick
 	return palette[if role == "Glow" then "Light" else role] or palette.Main
 end
@@ -58,8 +54,8 @@ end
 -- One decorative piece, welded to `anchor`. `size` is in layout units (scaled by kit.k);
 -- `cframe` is already in world space (from kit.at).
 function TankLookStyle.piece(kit: Kit, anchor: BasePart, name: string, shape: Shape, role: Role, size: Vector3, cframe: CFrame): BasePart
-	-- Accent (flags, stripes) and lights keep their exact shape in every line.
-	local keep = role == "Accent" or role == "Glow"
+	-- Lights keep their exact shape in every line.
+	local keep = role == "Glow"
 	local styled = if keep then shape else (ROUNDED[kit.line] or {})[shape] or shape
 	local scaled = size * kit.k
 	local part: BasePart

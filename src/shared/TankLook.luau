@@ -1,8 +1,7 @@
 --!strict
 -- The tank parts kit: dresses a tank's (invisible) physics skeleton from its blueprint
 -- (TankCatalog.look): one Tracks, Hull, Turret and Gun part plus any Extras, each drawn in
--- the line's style (TankLookStyle). Every tank also gets the accent color on fender stripes
--- and a flag, so teams stay readable whatever the line.
+-- the line's style (TankLookStyle). Teams are not painted on: clients outline tanks.
 --
 -- Layout units match TankBuilder's Medium tank (kit.at scales them): ground y = 0, deck top
 -- y = 3.7, turret ring y = 3.8 at z = -0.6, gun axis y = 5.0 starting at z = -2.6 (forward
@@ -38,8 +37,6 @@ type Ctx = Kit & {
 	barrel: BasePart,
 	L: number,
 	W: number,
-	side: number, -- x of the hull's outer side (stripes, skirts)
-	stripeY: number, -- height of the accent stripes
 	turretTop: number, -- y of the turret roof (antennas, ears, clips sit on it)
 	gunAt: (d: number) -> number, -- z of a point d barrel-units along the gun
 }
@@ -84,7 +81,6 @@ local TRACKS: { [string]: (Ctx) -> () } = {
 			Style.slab(c, c.hull, "Skirt", "Main", V(0.6, 2.0, 10.6), c.at(5.25 * side, 2.2, 0))
 			piece(c, c.hull, "SkirtEdge", "Box", "Second", V(0.7, 0.4, 10.6), c.at(5.25 * side, 1.2, 0))
 		end
-		c.side = 5.6
 	end,
 }
 
@@ -125,8 +121,6 @@ local HULLS: { [string]: (Ctx) -> () } = {
 		piece(c, c.hull, "Body", "Pill", "Main", V(8.8, 2.9, 11.6), c.at(0, 2.55, 0))
 		piece(c, c.hull, "Belly", "Pill", "Second", V(6.4, 1.4, 9.4), c.at(0, 1.6, 0))
 		Style.stitches(c, c.hull, V(0, 4.0, -4.8), V(0, 4.0, 2.4), 8)
-		c.side = 4.35
-		c.stripeY = 2.6
 	end,
 }
 
@@ -243,7 +237,7 @@ local GUNS: { [string]: (Ctx) -> number } = {
 local EXTRAS: { [string]: (Ctx) -> () } = {
 	Antenna = function(c: Ctx)
 		piece(c, c.turret, "Antenna", "Tube", "Dark", V(3.6, 0.2, 0.2), c.at(1.7, c.turretTop + 1.8, 1.0) * ALONG_Y)
-		piece(c, c.turret, "AntennaTip", "Ball", "Glow", V(0.6, 0.6, 0.6), c.at(1.7, c.turretTop + 3.7, 1.0))
+		piece(c, c.turret, "AntennaTip", "Ball", "Dark", V(0.5, 0.5, 0.5), c.at(1.7, c.turretTop + 3.7, 1.0))
 	end,
 	Lamps = function(c: Ctx)
 		for _, side in { -1, 1 } do
@@ -309,23 +303,13 @@ local EXTRAS: { [string]: (Ctx) -> () } = {
 	end,
 }
 
--- Accent: fender stripes and a flag, in team (or line) color.
-local function accent(c: Ctx)
-	for _, side in { -1, 1 } do
-		piece(c, c.hull, "AccentStripe", "Box", "Accent", V(0.3, 0.8, 7.5), c.at(c.side * side, c.stripeY, 0.4))
-	end
-	piece(c, c.hull, "FlagPole", "Tube", "Dark", V(5.4, 0.25, 0.25), c.at(-3.9, 6.4, 5.0) * ALONG_Y)
-	piece(c, c.hull, "Flag", "Box", "Accent", V(0.15, 1.9, 2.9), c.at(-3.9, 8.1, 6.45))
-end
-
--- Dress `anchors` as tank `tankId`. `kit` gives the model, line, accent and layout transform;
+-- Dress `anchors` as tank `tankId`. `kit` gives the model, line and layout transform;
 -- L and W are the class's barrel length/width multipliers.
 function TankLook.dress(kit: Kit, anchors: Anchors, tankId: string, L: number, W: number): Dressed
 	local look = TankCatalog.look(tankId)
 	local c: Ctx = {
 		model = kit.model,
 		line = kit.line,
-		accent = kit.accent,
 		at = kit.at,
 		k = kit.k,
 		hull = anchors.hull,
@@ -333,8 +317,6 @@ function TankLook.dress(kit: Kit, anchors: Anchors, tankId: string, L: number, W
 		barrel = anchors.barrel,
 		L = L,
 		W = W,
-		side = 4.95,
-		stripeY = 3.2,
 		turretTop = 6,
 		gunAt = function(d: number): number
 			return -2.6 - d * L
@@ -354,7 +336,6 @@ function TankLook.dress(kit: Kit, anchors: Anchors, tankId: string, L: number, W
 			extra(c)
 		end
 	end
-	accent(c)
 	return { muzzle = muzzle }
 end
 

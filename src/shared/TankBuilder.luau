@@ -100,8 +100,8 @@ end
 local ALONG_Z = CFrame.Angles(0, math.rad(90), 0) -- X axis -> forward (-Z)
 local ALONG_Y = CFrame.Angles(0, 0, math.rad(90)) -- X axis -> up
 
--- `accent` is the team color (flag, stripes); nil uses the line's trim color (Garage).
-function TankBuilder.build(origin: CFrame, accent: Color3?, tankId: string, mods: { string }?): Tank
+-- Tanks always wear their line's colors; teams are shown by client outlines (TankOverlays).
+function TankBuilder.build(origin: CFrame, tankId: string, mods: { string }?): Tank
 	local def = TankCatalog.get(tankId)
 	local spec = TankCatalog.spec(tankId, mods)
 	local model = Instance.new("Model")
@@ -198,7 +198,6 @@ function TankBuilder.build(origin: CFrame, accent: Color3?, tankId: string, mods
 	local kit = {
 		model = model,
 		line = def.Line,
-		accent = accent or palette.Trim,
 		at = at,
 		k = k,
 	}
