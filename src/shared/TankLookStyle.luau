@@ -1,10 +1,11 @@
 --!strict
 -- Line styling for tank parts. The parts kit (TankLook) asks for generic shapes in a role
 -- color; each line turns them into its own toy look:
---   Brick: hard plastic blocks, slightly shrunk so the seams between them show; round
---          shapes become blocks too.
+--   Brick: hard plastic. Big blocks (slabs) are stacked from staggered bricks with wide
+--          seams and peg holes on their sides; round shapes become blocks too.
 --   Plush: fabric; boxes become soft pillows (rounded) and wedges become plump rounds.
---   Foam:  blaster plastic shell, with "Foam" role parts in soft rubber.
+--   Foam:  glossy blaster plastic with rounded-edge shells, ringed by matte foam
+--          "pool noodle" bumpers; wedges become soft round noses.
 -- Every piece is decoration (no collision, no mass) welded to a physics anchor.
 
 local Config = require(script.Parent.Config)
@@ -15,7 +16,7 @@ local TankLookStyle = {}
 -- Tube: cylinder along the part's X axis (size = length, diameter, diameter).
 export type Shape = "Box" | "Wedge" | "Round" | "Pill" | "Ball" | "Tube"
 -- Palette slots (Config.Looks.Palettes) plus Accent (team / line color) and Glow (lights).
-export type Role = "Main" | "Second" | "Trim" | "Dark" | "Light" | "Foam" | "Accent" | "Glow"
+export type Role = "Main" | "Second" | "Trim" | "Dark" | "Light" | "Foam" | "Noodle" | "Accent" | "Glow"
 
 export type Kit = {
 	model: Model,
@@ -28,7 +29,7 @@ export type Kit = {
 local ROUNDED: { [string]: { [string]: string } } = {
 	Brick = { Round = "Box", Pill = "Box", Ball = "Box" },
 	Plush = { Box = "Pill", Wedge = "Round" },
-	Foam = {},
+	Foam = { Wedge = "Round" },
 }
 
 local function color(kit: Kit, role: Role): Color3
@@ -42,7 +43,7 @@ end
 local function material(kit: Kit, role: Role): Enum.Material
 	if role == "Glow" then
 		return Enum.Material.Neon
-	elseif role == "Foam" then
+	elseif role == "Foam" or role == "Noodle" then
 		return Config.Looks.FoamMaterial
 	end
 	return (Config.Looks.Materials :: any)[kit.line] or Enum.Material.SmoothPlastic
@@ -94,6 +95,98 @@ function TankLookStyle.piece(kit: Kit, anchor: BasePart, name: string, shape: Sh
 	weld.Part1 = part
 	weld.Parent = part
 	return part
+end
+
+local function offset(kit: Kit, cframe: CFrame, x: number, y: number, z: number): CFrame
+	return cframe * CFrame.new(x * kit.k, y * kit.k, z * kit.k)
+end
+
+-- Brick: cut a box into courses of bricks (rows ~0.9 tall), joints staggered row to row.
+local function bricks(kit: Kit, anchor: BasePart, name: string, role: Role, size: Vector3, cframe: CFrame)
+	local cfg = Config.Looks.Brick
+	local rows = math.max(1, math.round(size.Y / cfg.CourseHeight))
+	local cols = math.max(1, math.ceil(size.X / cfg.BrickWidth))
+	local rowH, colW = size.Y / rows, size.X / cols
+	local count = math.max(1, math.round(size.Z / cfg.BrickLength))
+	local len = size.Z / count
+	for r = 0, rows - 1 do
+		local y = -size.Y / 2 + rowH * (r + 0.5)
+		-- Joints along Z; odd rows shift half a brick (half bricks at the ends).
+		local cuts = { -size.Z / 2 }
+		local shift = if r % 2 == 1 and count > 1 then len / 2 else 0
+		for i = 1, count do
+			local z = -size.Z / 2 + i * len - shift
+			if z > cuts[#cuts] + 0.05 and z < size.Z / 2 - 0.05 then
+				table.insert(cuts, z)
+			end
+		end
+		table.insert(cuts, size.Z / 2)
+		for i = 1, #cuts - 1 do
+			for col = 0, cols - 1 do
+				local x = -size.X / 2 + colW * (col + 0.5)
+				local z = (cuts[i] + cuts[i + 1]) / 2
+				TankLookStyle.piece(kit, anchor, name, "Box", role, Vector3.new(colW, rowH, cuts[i + 1] - cuts[i]), offset(kit, cframe, x, y, z))
+			end
+		end
+	end
+end
+
+-- Foam: a box with rounded long edges (extruded along Z): two crossed cores + 4 tubes.
+local function shell(kit: Kit, anchor: BasePart, name: string, role: Role, size: Vector3, cframe: CFrame)
+	local r = math.min(size.X, size.Y) * Config.Looks.Foam.EdgeRound
+	TankLookStyle.piece(kit, anchor, name, "Box", role, Vector3.new(size.X - 2 * r, size.Y, size.Z), cframe)
+	TankLookStyle.piece(kit, anchor, name, "Box", role, Vector3.new(size.X, size.Y - 2 * r, size.Z), cframe)
+	local along = CFrame.Angles(0, math.rad(90), 0)
+	for _, sx in { -1, 1 } do
+		for _, sy in { -1, 1 } do
+			local at = offset(kit, cframe, sx * (size.X / 2 - r), sy * (size.Y / 2 - r), 0) * along
+			TankLookStyle.piece(kit, anchor, name, "Tube", role, Vector3.new(size.Z, 2 * r, 2 * r), at)
+		end
+	end
+end
+
+-- A big structural block (hull body, deck, turret body): bricks for Brick, a rounded shell
+-- for Foam, a single (pillowed) piece for Plush. `size` in layout units, `cframe` world.
+function TankLookStyle.slab(kit: Kit, anchor: BasePart, name: string, role: Role, size: Vector3, cframe: CFrame)
+	if kit.line == "Brick" then
+		bricks(kit, anchor, name, role, size, cframe)
+	elseif kit.line == "Foam" then
+		shell(kit, anchor, name, role, size, cframe)
+	else
+		TankLookStyle.piece(kit, anchor, name, "Box", role, size, cframe)
+	end
+end
+
+-- Brick only: a row of round peg holes along both X sides of a slab of `size`.
+function TankLookStyle.pegs(kit: Kit, anchor: BasePart, size: Vector3, cframe: CFrame, count: number)
+	if kit.line ~= "Brick" then
+		return
+	end
+	local d = math.min(0.7, size.Y * 0.45)
+	for _, side in { -1, 1 } do
+		for i = 1, count do
+			local z = -size.Z / 2 + size.Z * (i - 0.5) / count
+			local at = offset(kit, cframe, side * (size.X / 2 - 0.08), 0, z)
+			TankLookStyle.piece(kit, anchor, "PegHole", "Tube", "Dark", Vector3.new(0.3, d, d), at)
+		end
+	end
+end
+
+-- Foam only: a ring of soft foam tubes around the edge of a deck of `size` (X by Z).
+function TankLookStyle.bumpers(kit: Kit, anchor: BasePart, size: Vector3, cframe: CFrame)
+	if kit.line ~= "Foam" then
+		return
+	end
+	local d = Config.Looks.Foam.NoodleSize
+	local hx, hz = size.X / 2, size.Z / 2
+	local alongZ = CFrame.Angles(0, math.rad(90), 0)
+	for _, s in { -1, 1 } do
+		TankLookStyle.piece(kit, anchor, "Noodle", "Tube", "Noodle", Vector3.new(size.Z, d, d), offset(kit, cframe, s * hx, 0, 0) * alongZ)
+		TankLookStyle.piece(kit, anchor, "Noodle", "Tube", "Noodle", Vector3.new(size.X, d, d), offset(kit, cframe, 0, 0, s * hz))
+		for _, t in { -1, 1 } do
+			TankLookStyle.piece(kit, anchor, "NoodleCorner", "Ball", "Noodle", Vector3.new(d, d, d), offset(kit, cframe, s * hx, 0, t * hz))
+		end
+	end
 end
 
 -- Plush only: a row of stitches from `a` to `b` (layout units), as little light dashes.

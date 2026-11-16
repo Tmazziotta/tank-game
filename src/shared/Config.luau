@@ -164,7 +164,8 @@ local Config = {
 				Trim = Color3.fromRGB(170, 222, 60),
 				Dark = Color3.fromRGB(46, 52, 72),
 				Light = Color3.fromRGB(255, 236, 120),
-				Foam = Color3.fromRGB(255, 120, 30), -- dart tips, bumpers
+				Foam = Color3.fromRGB(255, 120, 30), -- dart tips
+				Noodle = Color3.fromRGB(60, 130, 230), -- foam bumper tubes
 			},
 		},
 		Materials = {
@@ -173,7 +174,9 @@ local Config = {
 			Foam = Enum.Material.SmoothPlastic, -- blaster shell; "Foam" parts use FoamMaterial
 		},
 		FoamMaterial = Enum.Material.Rubber,
-		BrickSeam = 0.08, -- Brick blocks shrink by this so the joins between them show
+		BrickSeam = 0.22, -- Brick blocks shrink by this so the joins between them show
+		Brick = { CourseHeight = 0.9, BrickLength = 2.6, BrickWidth = 5 }, -- slab brick sizes
+		Foam = { EdgeRound = 0.4, NoodleSize = 1.3 }, -- shell edge radius (x thinner side), bumper tube
 		Defaults = {
 			Brick = {
 				Light = { Tracks = "Wheels", Hull = "Slab", Turret = "Box", Gun = "Plain", Extras = { "Antenna" } },

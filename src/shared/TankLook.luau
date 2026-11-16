@@ -81,7 +81,7 @@ local TRACKS: { [string]: (Ctx) -> () } = {
 	Skirted = function(c: Ctx)
 		treads(c)
 		for _, side in { -1, 1 } do
-			piece(c, c.hull, "Skirt", "Box", "Main", V(0.6, 2.0, 10.6), c.at(5.25 * side, 2.2, 0))
+			Style.slab(c, c.hull, "Skirt", "Main", V(0.6, 2.0, 10.6), c.at(5.25 * side, 2.2, 0))
 			piece(c, c.hull, "SkirtEdge", "Box", "Second", V(0.7, 0.4, 10.6), c.at(5.25 * side, 1.2, 0))
 		end
 		c.side = 5.6
@@ -93,22 +93,28 @@ local TRACKS: { [string]: (Ctx) -> () } = {
 local HULLS: { [string]: (Ctx) -> () } = {
 	-- Flat box hull with a full-width deck.
 	Slab = function(c: Ctx)
-		piece(c, c.hull, "Body", "Box", "Second", V(6.2, 2, 10), c.at(0, 2.2, 0))
-		piece(c, c.hull, "Deck", "Box", "Main", V(9.8, 0.6, 11.6), c.at(0, 3.4, 0))
+		Style.slab(c, c.hull, "Body", "Second", V(6.2, 2, 10), c.at(0, 2.2, 0))
+		Style.pegs(c, c.hull, V(6.2, 2, 10), c.at(0, 2.2, 0), 4)
+		Style.slab(c, c.hull, "Deck", "Main", V(9.8, 0.6, 11.6), c.at(0, 3.4, 0))
+		Style.bumpers(c, c.hull, V(9.8, 0.6, 11.6), c.at(0, 3.2, 0))
 		piece(c, c.hull, "Nose", "Box", "Main", V(6.2, 0.8, 0.8), c.at(0, 2.6, -5.3))
 	end,
 	-- Sloped front plate: sleeker, pointier.
 	Wedge = function(c: Ctx)
-		piece(c, c.hull, "Body", "Box", "Second", V(6.2, 2, 9), c.at(0, 2.2, 0.5))
-		piece(c, c.hull, "Deck", "Box", "Main", V(9.8, 0.6, 9.2), c.at(0, 3.4, 1.2))
+		Style.slab(c, c.hull, "Body", "Second", V(6.2, 2, 9), c.at(0, 2.2, 0.5))
+		Style.pegs(c, c.hull, V(6.2, 2, 9), c.at(0, 2.2, 0.5), 4)
+		Style.slab(c, c.hull, "Deck", "Main", V(9.8, 0.6, 9.2), c.at(0, 3.4, 1.2))
+		Style.bumpers(c, c.hull, V(9.8, 0.6, 9.2), c.at(0, 3.2, 1.2))
 		-- A wedge's slope falls toward -Z: high at the back, low at the nose.
 		piece(c, c.hull, "Glacis", "Wedge", "Main", V(9.8, 2.4, 2.6), c.at(0, 2.5, -4.7))
 	end,
 	-- Long hull with a raised engine deck and exhausts at the back.
 	Long = function(c: Ctx)
-		piece(c, c.hull, "Body", "Box", "Second", V(6.2, 2, 10.4), c.at(0, 2.2, 0.2))
-		piece(c, c.hull, "Deck", "Box", "Main", V(9.8, 0.6, 11.8), c.at(0, 3.4, 0.1))
-		piece(c, c.hull, "Engine", "Box", "Second", V(7.4, 0.9, 1.8), c.at(0, 4.15, 5.0))
+		Style.slab(c, c.hull, "Body", "Second", V(6.2, 2, 10.4), c.at(0, 2.2, 0.2))
+		Style.pegs(c, c.hull, V(6.2, 2, 10.4), c.at(0, 2.2, 0.2), 4)
+		Style.slab(c, c.hull, "Deck", "Main", V(9.8, 0.6, 11.8), c.at(0, 3.4, 0.1))
+		Style.bumpers(c, c.hull, V(9.8, 0.6, 11.8), c.at(0, 3.2, 0.1))
+		Style.slab(c, c.hull, "Engine", "Second", V(7.4, 0.9, 1.8), c.at(0, 4.15, 5.0))
 		for _, side in { -1, 1 } do
 			piece(c, c.hull, "Exhaust", "Tube", "Dark", V(1.6, 0.7, 0.7), c.at(2.9 * side, 4.6, 5.6) * ALONG_Y)
 		end
@@ -135,24 +141,27 @@ local TURRETS: { [string]: (Ctx) -> () } = {
 	end,
 	-- Square turret with a hatch and a rear bustle.
 	Box = function(c: Ctx)
-		piece(c, c.turret, "TurretBody", "Box", "Main", V(5.4, 1.8, 5.2), c.at(0, 4.7, -0.5))
-		piece(c, c.turret, "Bustle", "Box", "Second", V(4.4, 1.2, 1.4), c.at(0, 4.6, 2.6))
+		Style.slab(c, c.turret, "TurretBody", "Main", V(5.4, 1.8, 5.2), c.at(0, 4.7, -0.5))
+		Style.pegs(c, c.turret, V(5.4, 1.8, 5.2), c.at(0, 4.7, -0.5), 3)
+		Style.slab(c, c.turret, "Bustle", "Second", V(4.4, 1.2, 1.4), c.at(0, 4.6, 2.6))
 		piece(c, c.turret, "Hatch", "Box", "Second", V(2.0, 0.4, 2.0), c.at(-1.0, 5.8, 0.2))
 		piece(c, c.turret, "Mantlet", "Box", "Dark", V(2.2, 1.4, 0.7), c.at(0, 5.0, -3.3))
 		c.turretTop = 5.6
 	end,
 	-- Two stacked blocks with a little cupola: a tall tower.
 	Tall = function(c: Ctx)
-		piece(c, c.turret, "TurretBody", "Box", "Main", V(5.0, 1.6, 5.0), c.at(0, 4.6, -0.6))
-		piece(c, c.turret, "TurretTop", "Box", "Second", V(3.6, 1.4, 3.6), c.at(0, 6.1, -0.2))
+		Style.slab(c, c.turret, "TurretBody", "Main", V(5.0, 1.6, 5.0), c.at(0, 4.6, -0.6))
+		Style.pegs(c, c.turret, V(5.0, 1.6, 5.0), c.at(0, 4.6, -0.6), 3)
+		Style.slab(c, c.turret, "TurretTop", "Second", V(3.6, 1.4, 3.6), c.at(0, 6.1, -0.2))
 		piece(c, c.turret, "Cupola", "Tube", "Dark", V(0.6, 1.6, 1.6), c.at(0.8, 7.1, 0.2) * ALONG_Y)
 		piece(c, c.turret, "Mantlet", "Box", "Dark", V(2.0, 1.4, 0.7), c.at(0, 5.0, -3.4))
 		c.turretTop = 7.4
 	end,
 	-- Wide, flat turret with a big rear bustle: a heavy's.
 	Wide = function(c: Ctx)
-		piece(c, c.turret, "TurretBody", "Box", "Main", V(6.6, 1.5, 5.6), c.at(0, 4.6, -0.5))
-		piece(c, c.turret, "Bustle", "Box", "Second", V(5.6, 1.2, 2.0), c.at(0, 4.55, 3.1))
+		Style.slab(c, c.turret, "TurretBody", "Main", V(6.6, 1.5, 5.6), c.at(0, 4.6, -0.5))
+		Style.pegs(c, c.turret, V(6.6, 1.5, 5.6), c.at(0, 4.6, -0.5), 3)
+		Style.slab(c, c.turret, "Bustle", "Second", V(5.6, 1.2, 2.0), c.at(0, 4.55, 3.1))
 		piece(c, c.turret, "Mantlet", "Box", "Dark", V(2.6, 1.8, 0.9), c.at(0, 5.0, -3.6))
 		c.turretTop = 5.4
 	end,
@@ -169,7 +178,10 @@ local TURRETS: { [string]: (Ctx) -> () } = {
 	-- A foam blaster body: plastic shell on a soft foam pad, with a top rail.
 	Blaster = function(c: Ctx)
 		piece(c, c.turret, "Pad", "Box", "Foam", V(5.2, 0.6, 6.0), c.at(0, 4.0, -0.4))
-		piece(c, c.turret, "Shell", "Box", "Second", V(4.6, 2.0, 5.6), c.at(0, 5.2, -0.3))
+		Style.slab(c, c.turret, "Shell", "Second", V(4.6, 2.0, 5.6), c.at(0, 5.2, -0.3))
+		for i = 0, 2 do
+			piece(c, c.turret, "Grip", "Tube", "Dark", V(4.75, 0.25, 0.25), c.at(0, 4.6 + i * 0.45, 1.6))
+		end
 		piece(c, c.turret, "Rail", "Box", "Main", V(1.2, 0.5, 5.0), c.at(0, 6.45, -0.3))
 		for _, side in { -1, 1 } do
 			piece(c, c.turret, "Vent", "Box", "Trim", V(0.3, 0.8, 2.6), c.at(2.4 * side, 5.3, 0.2))
@@ -278,9 +290,12 @@ local EXTRAS: { [string]: (Ctx) -> () } = {
 	end,
 	-- Dart clip on the roof, dart noses showing at the back.
 	Clip = function(c: Ctx)
-		piece(c, c.turret, "Clip", "Box", "Second", V(1.8, 1.3, 3.2), c.at(0, c.turretTop + 0.6, 0.4))
+		Style.slab(c, c.turret, "Clip", "Main", V(2.4, 1.0, 3.0), c.at(0, c.turretTop + 0.5, 0.4))
+		-- Four darts lying in the clip: blue foam bodies, round orange tips forward.
 		for i = 0, 3 do
-			piece(c, c.turret, "ClipDart", "Ball", "Foam", V(0.45, 0.45, 0.45), c.at(-0.55 + i * 0.37, c.turretTop + 0.75, 2.05))
+			local x = -0.75 + i * 0.5
+			piece(c, c.turret, "ClipDart", "Tube", "Trim", V(2.6, 0.42, 0.42), c.at(x, c.turretTop + 1.2, 0.6) * ALONG_Z)
+			piece(c, c.turret, "ClipDartTip", "Ball", "Foam", V(0.5, 0.5, 0.5), c.at(x, c.turretTop + 1.2, -0.75))
 		end
 	end,
 	-- Round drum magazine on the side.
