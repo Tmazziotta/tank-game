@@ -14,7 +14,7 @@ Arcade tank brawler set in a giant kid's toy world. Toy tanks from rival toy lin
 6. **Arcade, not realistic.** Toys, bright colors, silly cosmetics.
 
 ## Theme: the Toy Room
-- **Garage:** a kid's desk; your tank sits on a cardboard turntable among pencils, blocks and crayon drawings.
+- **Garage:** a cozy, sunny kid's desk in daytime: warm sunlight through a window, soft shadows, bright colors (never dark). Your tank, shown large as the star, sits on a cardboard toy display stand, framed by a few big props (pencil cup, desk lamp switched off, stacked books) and crayon drawings; the background is softly blurred.
 - **Maps:** toy-scale arenas in a kid's house, where furniture and clutter are the terrain (see Maps).
 - **Neon/arcade looks** live on as rare cosmetics (neon paint, glowing trails), not the main theme.
 - All toy lines, names and designs are original. No real toy brands, their trade dress, or existing game assets.
@@ -37,6 +37,7 @@ Garage → queue → best-of-5 match → podium + rewards → back to Garage →
 - **Damage:** server-authoritative. Front armor > sides > rear. Steep impact angles reduce damage; past ~70° the shell ricochets.
 - **Death:** explosion, wreck lingers ~5s. No respawn until the next round; you spectate a living teammate.
 - **Map reset:** full rebuild before each round.
+- **Team identity:** teams are shown by a colored outline/glow around each tank (a Highlight) plus a colored nameplate, never by paint, so a tank always wears its line's colors. Allies are blue, enemies orange-red (chosen to stay distinct for colorblind players), and the outline must read on every map and on mobile. Tank models carry no team stripes or flags.
 
 ## Matchmaking
 - **Strict same tier:** tier 1 never plays tier 2.
@@ -50,9 +51,14 @@ Launch with 3 lines; more as content updates (Tin Toys, Army Men, Timber Tracks)
 
 | Line | Look | Playstyle | Signature |
 |---|---|---|---|
-| **Brick Co.** | Snap-together block tanks (original look, no stud-brick trade dress) | Armor, slow | Armor visibly chips; bricks fly off when hit |
-| **Plush Patrol** | Stitched stuffed animals, button eyes | Speed, fragile | Squish: bounces off walls, hops small obstacles |
-| **Foam Force** | Dart blasters, foam rounds (original colors) | Rapid fire, low per-shot | Clip-based fire, great vs cover |
+| **Brick Co.** | Snap-together block tanks (original look, no stud-brick trade dress): **all square**, glossy plastic | Armor, slow | Armor visibly chips; bricks fly off when hit |
+| **Plush Patrol** | Stitched stuffed animals, button eyes: **all soft and round**, fabric | Speed, fragile | Squish: bounces off walls, hops small obstacles |
+| **Foam Force** | Dart blasters, foam rounds (original colors): **all capsule**, fully matte | Rapid fire, low per-shot | Clip-based fire, great vs cover |
+
+**Line silhouettes:** each line must be recognizable from its shape alone (a black silhouette), not just its colors:
+- **Brick Co.:** every part square. Treads are blocky segments made of bricks (no round wheels), the turret is stepped and stacked, and blocks show their seams and peg holes.
+- **Foam Force:** every part a capsule or tube. Squishy roller wheels, a thick foam-noodle bumper you can see at range, an oversized blaster barrel.
+- **Plush Patrol:** the reference for how clearly a line should read: plump rounded bodies, animal heads (ears, snout, button eyes), stitching.
 
 ### Tree shape (per line)
 ```
@@ -81,6 +87,7 @@ Tier 3:   Light          Medium         Heavy
   - Plush Patrol: double-hop · squeaky decoy plush that draws fire
   - Foam Force: sticky darts that slow tanks · a "mega dart" as the last shot in each clip
 - Completing a tank's tree (**elite** = a mod unlocked in every row) unlocks the tank(s) it leads to in the next tier; you then buy them with coins.
+- **Elite payoff:** once a tank is elite, its Garage card swaps "Open Toolbox" for a pulsing "Unlock Tier N →" button that opens the Toy Shelf on the next tank.
 - Replaces the old gun/armor/engine upgrade tracks.
 
 ### Pacing (tune from data)
@@ -95,7 +102,7 @@ Tier 3:   Light          Medium         Heavy
 4. Short match vs bots, then into the Garage with a reward popup.
 
 ## Garage tabs
-1. **Garage (home):** tank on the turntable (drag to spin, idle animations), PLAY + mode pick, level/XP/coins, 3 daily quests, "NEW" dots, and the **loadout bar**: 3 slots of owned tanks you flip between in the garage and take into the queue (like a tank carousel). The game pass adds a 4th slot.
+1. **Garage (home):** tank on the turntable (drag to spin, idle animations), PLAY + mode pick, level/XP/coins, 3 daily quests (the "Quests" chip), "NEW" dots, and the **loadout bar**: 3 slots of owned tanks you flip between in the garage and take into the queue (like a tank carousel). The game pass adds a 4th slot.
 2. **Toy Shelf (tech tree):** one shelf per toy line, tanks as boxed toys by tier; price, requirements, stats, 3D preview, box-opening unlock animation; premium tanks on a glowing shelf.
 3. **Toolbox (mods):** the selected tank's mod tree; pick 1 of 2 per row; visible model changes.
 4. **Dress Up (customize):** Topper (hats), Paint, Pattern, Decal, Treads, Trail, Kill Effect, Horn, Victory Emote; live preview; randomize; saved outfits. **Cosmetics never change hitboxes or stats.**
